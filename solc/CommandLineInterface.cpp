@@ -90,9 +90,10 @@ using namespace solidity::langutil;
 namespace
 {
 
-set<frontend::InputMode> const CompilerInputModes{
+set<frontend::InputMode> const CompilerInputModes {
 	frontend::InputMode::Compiler,
-	frontend::InputMode::CompilerWithASTImport
+	frontend::InputMode::CompilerWithASTImport,
+	frontend::InputMode::CompilerWithEvmAssemblyJsonImport
 };
 
 } // anonymous namespace
@@ -351,8 +352,8 @@ void CommandLineInterface::handleNatspec(bool _natspecDev, string const& _contra
 	solAssert(CompilerInputModes.count(m_options.input.mode) == 1);
 
 	bool enabled = false;
-	std::string suffix;
-	std::string title;
+	string suffix;
+	string title;
 
 	if (_natspecDev)
 	{
@@ -369,7 +370,7 @@ void CommandLineInterface::handleNatspec(bool _natspecDev, string const& _contra
 
 	if (enabled)
 	{
-		std::string output = jsonPrint(
+		string output = jsonPrint(
 			removeNullMembers(
 				_natspecDev ?
 				m_compiler->natspecDev(_contract) :
@@ -461,7 +462,7 @@ void CommandLineInterface::readInputFiles()
 	for (boost::filesystem::path const& allowedDirectory: m_options.input.allowedDirectories)
 		m_fileReader.allowDirectory(allowedDirectory);
 
-	map<std::string, set<boost::filesystem::path>> collisions =
+	map<string, set<boost::filesystem::path>> collisions =
 		m_fileReader.detectSourceUnitNameCollisions(m_options.input.paths);
 	if (!collisions.empty())
 	{
@@ -551,7 +552,7 @@ map<string, Json::Value> CommandLineInterface::parseAstFromInput()
 
 		for (auto& src: ast["sources"].getMemberNames())
 		{
-			std::string astKey = ast["sources"][src].isMember("ast") ? "ast" : "AST";
+			string astKey = ast["sources"][src].isMember("ast") ? "ast" : "AST";
 
 			astAssert(ast["sources"][src].isMember(astKey), "astkey is not member");
 			astAssert(ast["sources"][src][astKey]["nodeType"].asString() == "SourceUnit",  "Top-level node should be a 'SourceUnit'");
@@ -562,6 +563,25 @@ map<string, Json::Value> CommandLineInterface::parseAstFromInput()
 	}
 
 	m_fileReader.setSourceUnits(tmpSources);
+
+	return sourceJsons;
+}
+
+map<string, Json::Value> CommandLineInterface::parseEvmAssemblyJsonFromInput()
+{
+	solAssert(m_options.input.mode == InputMode::CompilerWithEvmAssemblyJsonImport);
+	solAssert(m_fileReader.sourceUnits().size() == 1);
+
+	map<string, Json::Value> sourceJsons;
+
+	for (auto const& iter: m_fileReader.sourceUnits())
+	{
+		Json::Value evmAsmJson;
+		astAssert(jsonParseStrict(iter.second, evmAsmJson), "Input file could not be parsed to JSON");
+		astAssert(evmAsmJson.isMember(".code"), "Invalid Format for assembly-JSON: Must have '.code'-object");
+		astAssert(evmAsmJson.isMember(".data"), "Invalid Format for assembly-JSON: Must have '.data'-object");
+		sourceJsons[iter.first] = evmAsmJson;
+	}
 
 	return sourceJsons;
 }
@@ -669,6 +689,7 @@ void CommandLineInterface::processInput()
 		break;
 	case InputMode::Compiler:
 	case InputMode::CompilerWithASTImport:
+	case InputMode::CompilerWithEvmAssemblyJsonImport:
 		compile();
 		outputCompilationResults();
 	}
@@ -738,7 +759,18 @@ void CommandLineInterface::compile()
 
 		m_compiler->setOptimiserSettings(m_options.optimiserSettings());
 
-		if (m_options.input.mode == InputMode::CompilerWithASTImport)
+		if (m_options.input.mode == InputMode::CompilerWithEvmAssemblyJsonImport)
+		{
+			try
+			{
+				m_compiler->importEvmAssemblyJson(parseEvmAssemblyJsonFromInput());
+			}
+			catch (Exception const& _exc)
+			{
+				solThrow(CommandLineExecutionError, "Failed to import Evm Assembly JSON: "s + _exc.what());
+			}
+		}
+		else if (m_options.input.mode == InputMode::CompilerWithASTImport)
 		{
 			try
 			{
