@@ -34,13 +34,14 @@
 #include <liblangutil/CharStream.h>
 #include <liblangutil/Exceptions.h>
 
-#include <json/json.h>
+#include <libsolutil/JSON.h>
 
 #include <range/v3/algorithm/any_of.hpp>
 #include <range/v3/view/enumerate.hpp>
 
 #include <fstream>
 #include <limits>
+#include <iterator>
 
 using namespace std;
 using namespace solidity;
@@ -72,6 +73,122 @@ unsigned Assembly::codeSize(unsigned subTagSize) const
 		if (numberEncodingSize(ret) <= tagSize)
 			return static_cast<unsigned>(ret);
 	}
+}
+
+void Assembly::addAssemblyItemsFromJSON(Json::Value const& _code)
+{
+	solAssert(m_items.empty());
+	solAssert(_code.isArray());
+	for (auto const& jsonItem: _code)
+		m_items.emplace_back(createAssemblyItemFromJSON(jsonItem));
+
+	for (auto current = m_items.begin(); current != m_items.end(); ++current)
+	{
+		// During the assembly json export a `JUMPDEST` is always generated after a `tag`.
+		// So we just ignore exactly these `JUMPDEST`'s.
+		auto const nextItem = next(current);
+		if (nextItem != m_items.end() &&
+			current->type() == AssemblyItemType::Tag &&
+			nextItem->type() == AssemblyItemType::Operation &&
+			nextItem->instruction() == Instruction::JUMPDEST
+		)
+			m_items.erase(nextItem);
+	}
+}
+
+AssemblyItem Assembly::createAssemblyItemFromJSON(Json::Value const& _json)
+{
+	solAssert(isOfType<string>(_json["name"]));
+	solAssert(isOfType<int>(_json["begin"]));
+	solAssert(isOfType<int>(_json["end"]));
+	solAssert(isOfType<int>(_json["source"]));
+	solAssert(isOfTypeIfExists<string>(_json, "value"));
+	solAssert(isOfTypeIfExists<int>(_json, "modifierDepth"));
+	solAssert(isOfTypeIfExists<string>(_json, "jumpType"));
+
+	string name = getOrDefault<string>(_json["name"], "");
+	solAssert(!name.empty());
+
+	SourceLocation location;
+	location.start = get<int>(_json["begin"]);
+	location.end = get<int>(_json["end"]);
+	int srcIndex = get<int>(_json["source"]);
+	size_t modifierDepth = static_cast<size_t>(getOrDefault<int>(_json["modifierDepth"], 0));
+	string value = getOrDefault<string>(_json["value"], "");
+	string jumpType = getOrDefault<string>(_json["jumpType"], "");
+
+
+	auto updateUsedTags = [&](u256 const& data) {
+		m_usedTags = max(m_usedTags, static_cast<unsigned>(data) + 1);
+		return data;
+	};
+
+	auto immutableHash = [&](string const& _immutableName) -> h256 {
+		h256 hash(util::keccak256(_immutableName));
+		m_immutables[hash] = _immutableName;
+		return hash;
+	};
+
+	auto libraryHash = [&](string const& _libraryName) -> h256 {
+		h256 hash(util::keccak256(_libraryName));
+		m_libraries[hash] = _libraryName;
+		return hash;
+	};
+
+	if (srcIndex > -1 && srcIndex < static_cast<int>(sources().size()))
+		location.sourceName = sources()[static_cast<size_t>(srcIndex)];
+
+	AssemblyItem result(0);
+
+	if (c_instructions.count(name))
+	{
+		AssemblyItem item{c_instructions.at(name), location};
+		if (!jumpType.empty())
+			item.setJumpType(jumpType);
+		result = item;
+	}
+	else
+	{
+		if (name == "PUSH")
+		{
+			AssemblyItem item{AssemblyItemType::Push, u256("0x" + value)};
+			if (!jumpType.empty())
+				item.setJumpType(jumpType);
+			result = item;
+		}
+		else if (name == "PUSH [ErrorTag]")
+			result = {AssemblyItemType::PushTag, 0};
+		else if (name == "PUSH [tag]")
+			result = {AssemblyItemType::PushTag, updateUsedTags(u256(value))};
+		else if (name == "PUSH [$]")
+			result = {AssemblyItemType::PushSub, u256("0x" + value)};
+		else if (name == "PUSH #[$]")
+			result = {AssemblyItemType::PushSubSize, u256("0x" + value)};
+		else if (name == "PUSHSIZE")
+			result = {AssemblyItemType::PushProgramSize, 0};
+		else if (name == "PUSHLIB")
+			result = {AssemblyItemType::PushLibraryAddress, libraryHash(value)};
+		else if (name == "PUSHDEPLOYADDRESS")
+			result = {AssemblyItemType::PushDeployTimeAddress, 0};
+		else if (name == "PUSHIMMUTABLE")
+			result = {AssemblyItemType::PushImmutable, immutableHash(value)};
+		else if (name == "ASSIGNIMMUTABLE")
+			result = {AssemblyItemType::AssignImmutable, immutableHash(value)};
+		else if (name == "tag")
+			result = {AssemblyItemType::Tag, updateUsedTags(u256(value))};
+		else if (name == "PUSH data")
+			result = {AssemblyItemType::PushData, u256("0x" + value)};
+		else if (name == "VERBATIM")
+		{
+			AssemblyItem item(fromHex(value), 0, 0);
+			result = item;
+		}
+		else
+			assertThrow(false, InvalidOpcode, "");
+	}
+	result.setLocation(location);
+	result.m_modifierDepth = modifierDepth;
+	return result;
 }
 
 namespace
@@ -244,7 +361,7 @@ Json::Value Assembly::assemblyJSON(map<string, unsigned> const& _sourceIndices, 
 		jsonItem["end"] = item.location().end;
 		if (item.m_modifierDepth != 0)
 			jsonItem["modifierDepth"] = static_cast<int>(item.m_modifierDepth);
-		std::string jumpType = item.getJumpTypeAsString();
+		string jumpType = item.getJumpTypeAsString();
 		if (!jumpType.empty())
 			jsonItem["jumpType"] = jumpType;
 		if (name == "PUSHLIB")
@@ -286,7 +403,7 @@ Json::Value Assembly::assemblyJSON(map<string, unsigned> const& _sourceIndices, 
 
 		for (size_t i = 0; i < m_subs.size(); ++i)
 		{
-			std::stringstream hexStr;
+			stringstream hexStr;
 			hexStr << hex << i;
 			data[hexStr.str()] = m_subs[i]->assemblyJSON(_sourceIndices, /*_includeSourceList = */false);
 		}
@@ -296,6 +413,43 @@ Json::Value Assembly::assemblyJSON(map<string, unsigned> const& _sourceIndices, 
 		root[".auxdata"] = util::toHex(m_auxiliaryData);
 
 	return root;
+}
+
+shared_ptr<Assembly> Assembly::loadFromAssemblyJSON(Json::Value const& _json, vector<string> const& _sourceList /* = {} */, bool _isCreation /* = true */)
+{
+	if (!_json[".code"].isArray())
+		return {};
+
+	shared_ptr<Assembly> result = make_shared<Assembly>(_isCreation, "");
+	vector<string> sourceList;
+	if (_sourceList.empty())
+	{
+		if (_json.isMember("sourceList"))
+			for (auto const& it: _json["sourceList"])
+				sourceList.emplace_back(it.asString());
+	}
+	else
+		sourceList = _sourceList;
+	result->setSources(sourceList);
+	result->addAssemblyItemsFromJSON(_json[".code"]);
+	if (_json[".auxdata"].isString())
+		result->m_auxiliaryData = fromHex(_json[".auxdata"].asString());
+	Json::Value const& data = _json[".data"];
+	for (Json::ValueConstIterator itr = data.begin(); itr != data.end(); itr++)
+	{
+		solAssert(itr.key().isString(), "");
+		string key = itr.key().asString();
+		Json::Value const& code = data[key];
+		if (code.isString())
+			result->m_data[h256(fromHex(key))] = fromHex(code.asString());
+		else
+		{
+			shared_ptr<Assembly> subassembly(Assembly::loadFromAssemblyJSON(code, sourceList, /* isCreation = */ false));
+			assertThrow(subassembly, AssemblyException, "");
+			result->m_subs.emplace_back(make_shared<Assembly>(*subassembly));
+		}
+	}
+	return result;
 }
 
 AssemblyItem Assembly::namedTag(string const& _name, size_t _params, size_t _returns, optional<uint64_t> _sourceID)
@@ -341,7 +495,7 @@ Assembly& Assembly::optimise(OptimiserSettings const& _settings)
 
 map<u256, u256> const& Assembly::optimiseInternal(
 	OptimiserSettings const& _settings,
-	std::set<size_t> _tagsReferencedFromOutside
+	set<size_t> _tagsReferencedFromOutside
 )
 {
 	if (m_tagReplacements)
