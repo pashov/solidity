@@ -121,7 +121,9 @@ public:
 		/// Regular compilation from Solidity source files.
 		Solidity,
 		/// Compilation from an imported Solidity AST.
-		SolidityAST
+		SolidityAST,
+		/// Compilation from an imported EVM Assembly JSON
+		EvmAssemblyJson
 	};
 
 	/// Creates a new compiler stack.
@@ -232,6 +234,10 @@ public:
 	/// Imports given SourceUnits so they can be analyzed. Leads to the same internal state as parse().
 	/// Will throw errors if the import fails
 	void importASTs(std::map<std::string, Json::Value> const& _sources);
+
+	/// Imports given Evm Assembly Json. Leads to the same internal state as parse().
+	/// Will throw errors if the import fails
+	void importEvmAssemblyJson(std::map<std::string, Json::Value> const& _sources);
 
 	/// Performs the analysis steps (imports, scopesetting, syntaxCheck, referenceResolving,
 	///  typechecking, staticAnalysis) on previously parsed sources.

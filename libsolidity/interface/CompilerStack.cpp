@@ -241,7 +241,7 @@ void CompilerStack::setModelCheckerSettings(ModelCheckerSettings _settings)
 	m_modelCheckerSettings = _settings;
 }
 
-void CompilerStack::setLibraries(std::map<std::string, util::h160> const& _libraries)
+void CompilerStack::setLibraries(map<string, util::h160> const& _libraries)
 {
 	if (m_stackState >= ParsedAndImported)
 		solThrow(CompilerError, "Must set libraries before parsing.");
@@ -251,6 +251,7 @@ void CompilerStack::setLibraries(std::map<std::string, util::h160> const& _libra
 void CompilerStack::setOptimiserSettings(bool _optimize, size_t _runs)
 {
 	OptimiserSettings settings = _optimize ? OptimiserSettings::standard() : OptimiserSettings::minimal();
+	settings.enabled = _optimize;
 	settings.expectedExecutionsPerDeployment = _runs;
 	setOptimiserSettings(std::move(settings));
 }
@@ -423,6 +424,29 @@ void CompilerStack::importASTs(map<string, Json::Value> const& _sources)
 	m_compilationSourceType = CompilationSourceType::SolidityAST;
 
 	storeContractDefinitions();
+}
+
+void CompilerStack::importEvmAssemblyJson(map<string, Json::Value> const& _sources)
+{
+	solAssert(_sources.size() == 1, "");
+	solAssert(m_sourceJsons.empty(), "");
+	solAssert(m_sourceOrder.empty(), "");
+	if (m_stackState != Empty)
+		solThrow(CompilerError, "Must call importEvmAssemblyJson only before the SourcesSet state.");
+
+	m_sourceJsons = _sources;
+	Json::Value jsonValue = _sources.begin()->second;
+	if (jsonValue.isMember("sourceList"))
+		for (auto const& item: jsonValue["sourceList"])
+		{
+			Source source;
+			source.charStream = make_shared<CharStream>(item.asString(), "");
+			m_sources.emplace(make_pair(item.asString(), source));
+			m_sourceOrder.push_back(&m_sources[item.asString()]);
+		}
+	m_sourceJsons[_sources.begin()->first] = std::move(jsonValue);
+	m_compilationSourceType = CompilationSourceType::EvmAssemblyJson;
+	m_stackState = SourcesSet;
 }
 
 bool CompilerStack::analyze()
@@ -623,6 +647,9 @@ bool CompilerStack::parseAndAnalyze(State _stopAfter)
 {
 	m_stopAfter = _stopAfter;
 
+	if (m_compilationSourceType == CompilationSourceType::EvmAssemblyJson)
+		return true;
+
 	bool success = parse();
 	if (m_stackState >= m_stopAfter)
 		return success;
@@ -672,53 +699,73 @@ bool CompilerStack::compile(State _stopAfter)
 	// Only compile contracts individually which have been requested.
 	map<ContractDefinition const*, shared_ptr<Compiler const>> otherCompilers;
 
-	for (Source const* source: m_sourceOrder)
-		for (ASTPointer<ASTNode> const& node: source->ast->nodes())
-			if (auto contract = dynamic_cast<ContractDefinition const*>(node.get()))
-				if (isRequestedContract(*contract))
-				{
-					try
+	if (m_compilationSourceType == CompilationSourceType::EvmAssemblyJson)
+	{
+		solAssert(m_sourceJsons.size() == 1);
+
+		string const evmSourceName = m_sourceJsons.begin()->first;
+		Json::Value const evmJson = m_sourceJsons.begin()->second;
+
+		evmasm::Assembly::OptimiserSettings optimiserSettings =
+			evmasm::Assembly::OptimiserSettings::translateSettings(m_optimiserSettings, m_evmVersion);
+
+		m_contracts[evmSourceName].evmAssembly = evmasm::Assembly::loadFromAssemblyJSON(m_sourceJsons[evmSourceName]);
+		if (m_optimiserSettings.enabled)
+			m_contracts[evmSourceName].evmAssembly->optimise(optimiserSettings);
+		m_contracts[evmSourceName].object = m_contracts[evmSourceName].evmAssembly->assemble();
+
+		m_contracts[evmSourceName].evmRuntimeAssembly = make_shared<evmasm::Assembly>(m_contracts[evmSourceName].evmAssembly->sub(0));
+		solAssert(m_contracts[evmSourceName].evmRuntimeAssembly->isCreation() == false);
+		if (m_optimiserSettings.enabled)
+			m_contracts[evmSourceName].evmRuntimeAssembly->optimise(optimiserSettings);
+		m_contracts[evmSourceName].runtimeObject = m_contracts[evmSourceName].evmRuntimeAssembly->assemble();
+	}
+	else
+	{
+		for (Source const* source: m_sourceOrder)
+			for (ASTPointer<ASTNode> const& node: source->ast->nodes())
+				if (auto contract = dynamic_cast<ContractDefinition const*>(node.get()))
+					if (isRequestedContract(*contract))
 					{
-						if (m_viaIR || m_generateIR || m_generateEwasm)
-							generateIR(*contract);
-						if (m_generateEvmBytecode)
+						try
 						{
-							if (m_viaIR)
-								generateEVMFromIR(*contract);
-							else
-								compileContract(*contract, otherCompilers);
+							if (m_viaIR || m_generateIR || m_generateEwasm)
+								generateIR(*contract);
+							if (m_generateEvmBytecode)
+							{
+								if (m_viaIR)
+									generateEVMFromIR(*contract);
+								else
+									compileContract(*contract, otherCompilers);
+							}
+							if (m_generateEwasm)
+								generateEwasm(*contract);
 						}
-						if (m_generateEwasm)
-							generateEwasm(*contract);
-					}
-					catch (Error const& _error)
-					{
-						if (_error.type() != Error::Type::CodeGenerationError)
-							throw;
-						m_errorReporter.error(_error.errorId(), _error.type(), SourceLocation(), _error.what());
-						return false;
-					}
-					catch (UnimplementedFeatureError const& _unimplementedError)
-					{
-						if (
-							SourceLocation const* sourceLocation =
-							boost::get_error_info<langutil::errinfo_sourceLocation>(_unimplementedError)
-						)
+						catch (Error const& _error)
 						{
-							string const* comment = _unimplementedError.comment();
-							m_errorReporter.error(
-								1834_error,
-								Error::Type::CodeGenerationError,
-								*sourceLocation,
-								"Unimplemented feature error" +
-								((comment && !comment->empty()) ? ": " + *comment : string{}) +
-								" in " +
-								_unimplementedError.lineInfo()
-							);
+							if (_error.type() != Error::Type::CodeGenerationError)
+								throw;
+							m_errorReporter.error(_error.errorId(), _error.type(), SourceLocation(), _error.what());
 							return false;
 						}
-						else
-							throw;
+						catch (UnimplementedFeatureError const& _unimplementedError)
+						{
+							if (SourceLocation const* sourceLocation
+								= boost::get_error_info<langutil::errinfo_sourceLocation>(_unimplementedError))
+							{
+								string const* comment = _unimplementedError.comment();
+								m_errorReporter.error(
+									1834_error,
+									Error::Type::CodeGenerationError,
+									*sourceLocation,
+									"Unimplemented feature error"
+										+ ((comment && !comment->empty()) ? ": " + *comment : string{}) + " in "
+										+ _unimplementedError.lineInfo());
+								return false;
+							}
+							else
+								throw;
+						}
 					}
 				}
 	m_stackState = CompilationSuccessful;
@@ -813,7 +860,6 @@ Json::Value CompilerStack::generatedSources(string const& _contractName, bool _r
 				sources[0]["id"] = sourceIndex;
 				sources[0]["language"] = "Yul";
 				sources[0]["contents"] = std::move(source);
-
 			}
 		}
 		return sources;
@@ -850,7 +896,7 @@ string const* CompilerStack::runtimeSourceMapping(string const& _contractName) c
 	return c.runtimeSourceMapping ? &*c.runtimeSourceMapping : nullptr;
 }
 
-std::string const CompilerStack::filesystemFriendlyName(string const& _contractName) const
+string const CompilerStack::filesystemFriendlyName(string const& _contractName) const
 {
 	if (m_stackState < AnalysisPerformed)
 		solThrow(CompilerError, "No compiled contracts found.");
@@ -864,7 +910,7 @@ std::string const CompilerStack::filesystemFriendlyName(string const& _contractN
 				contract.second.contract != matchContract.contract)
 		{
 			// If it does, then return its fully-qualified name, made fs-friendly
-			std::string friendlyName = boost::algorithm::replace_all_copy(_contractName, "/", "_");
+			string friendlyName = boost::algorithm::replace_all_copy(_contractName, "/", "_");
 			boost::algorithm::replace_all(friendlyName, ":", "_");
 			boost::algorithm::replace_all(friendlyName, ".", "_");
 			return friendlyName;
@@ -961,9 +1007,10 @@ map<string, unsigned> CompilerStack::sourceIndices() const
 	map<string, unsigned> indices;
 	unsigned index = 0;
 	for (auto const& s: m_sources)
-		indices[s.first] = index++;
-	solAssert(!indices.count(CompilerContext::yulUtilityFileName()), "");
-	indices[CompilerContext::yulUtilityFileName()] = index++;
+		if (s.first != CompilerContext::yulUtilityFileName())
+			indices[s.first] = index++;
+	if (indices.find(CompilerContext::yulUtilityFileName()) == indices.end())
+		indices[CompilerContext::yulUtilityFileName()] = index++;
 	return indices;
 }
 
@@ -1116,7 +1163,7 @@ ContractDefinition const& CompilerStack::contractDefinition(string const& _contr
 }
 
 size_t CompilerStack::functionEntryPoint(
-	std::string const& _contractName,
+	string const& _contractName,
 	FunctionDefinition const& _function
 ) const
 {
@@ -1258,8 +1305,8 @@ bool onlySafeExperimentalFeaturesActivated(set<ExperimentalFeature> const& featu
 
 void CompilerStack::assemble(
 	ContractDefinition const& _contract,
-	std::shared_ptr<evmasm::Assembly> _assembly,
-	std::shared_ptr<evmasm::Assembly> _runtimeAssembly
+	shared_ptr<evmasm::Assembly> _assembly,
+	shared_ptr<evmasm::Assembly> _runtimeAssembly
 )
 {
 	solAssert(m_stackState >= AnalysisPerformed, "");
@@ -1521,6 +1568,11 @@ string CompilerStack::createMetadata(Contract const& _contract, bool _forIR) con
 	case CompilationSourceType::SolidityAST:
 		sourceType = "SolidityAST";
 		break;
+	case CompilationSourceType::EvmAssemblyJson:
+		sourceType = "EvmAssemblyJson";
+		break;
+	default:
+		solAssert(false);
 	}
 	meta["language"] = sourceType;
 	meta["compiler"]["version"] = VersionStringStrict;
@@ -1552,7 +1604,7 @@ string CompilerStack::createMetadata(Contract const& _contract, bool _forIR) con
 	}
 
 	static_assert(sizeof(m_optimiserSettings.expectedExecutionsPerDeployment) <= sizeof(Json::LargestUInt), "Invalid word size.");
-	solAssert(static_cast<Json::LargestUInt>(m_optimiserSettings.expectedExecutionsPerDeployment) < std::numeric_limits<Json::LargestUInt>::max(), "");
+	solAssert(static_cast<Json::LargestUInt>(m_optimiserSettings.expectedExecutionsPerDeployment) < numeric_limits<Json::LargestUInt>::max(), "");
 	meta["settings"]["optimizer"]["runs"] = Json::Value(Json::LargestUInt(m_optimiserSettings.expectedExecutionsPerDeployment));
 
 	/// Backwards compatibility: If set to one of the default settings, do not provide details.
