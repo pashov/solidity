@@ -191,6 +191,7 @@ def examine_id_coverage(top_dir, source_id_to_file_names, new_ids_only=False):
 
     # white list of ids which are not covered by tests
     white_ids = {
+        "1285", # Tested in test/libevmasm/Assembler.cpp
         "9804", # Tested in test/libyul/ObjectParser.cpp.
         "1544",
         "1749",

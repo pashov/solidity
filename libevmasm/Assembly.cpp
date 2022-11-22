@@ -94,6 +94,14 @@ void Assembly::addAssemblyItemsFromJSON(Json::Value const& _code)
 		)
 			m_items.erase(nextItem);
 	}
+
+	for (auto const& item: m_items)
+		if (item.type() == AssemblyItemType::Operation && item.instruction() == Instruction::JUMPDEST)
+			throw langutil::Error(
+				1285_error,
+				langutil::Error::Type::FatalError,
+				"JUMPDEST instruction found that was not followed by tag."
+			);
 }
 
 AssemblyItem Assembly::createAssemblyItemFromJSON(Json::Value const& _json)
