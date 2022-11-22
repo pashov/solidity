@@ -931,7 +931,8 @@ void CommandLineParser::processArgs()
 		g_strStrictAssembly,
 		g_strYul,
 		g_strImportAst,
-		g_strLSP
+		g_strLSP,
+		g_strImportEvmAssemblerJson,
 	});
 
 	if (m_args.count(g_strHelp) > 0)
@@ -1017,7 +1018,8 @@ void CommandLineParser::processArgs()
 	for (auto& option: conflictingWithStopAfter)
 		checkMutuallyExclusive({g_strStopAfter, option});
 
-	array<string, 11> const conflictingWithAsmJsonImport{
+	array<string, 12> const conflictingWithAsmJsonImport{
+		g_strOptimize,
 		CompilerOutputs::componentName(&CompilerOutputs::ir),
 		CompilerOutputs::componentName(&CompilerOutputs::irOptimized),
 		CompilerOutputs::componentName(&CompilerOutputs::ewasm),
