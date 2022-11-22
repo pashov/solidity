@@ -251,7 +251,6 @@ void CompilerStack::setLibraries(map<string, util::h160> const& _libraries)
 void CompilerStack::setOptimiserSettings(bool _optimize, size_t _runs)
 {
 	OptimiserSettings settings = _optimize ? OptimiserSettings::standard() : OptimiserSettings::minimal();
-	settings.enabled = _optimize;
 	settings.expectedExecutionsPerDeployment = _runs;
 	setOptimiserSettings(std::move(settings));
 }
@@ -706,18 +705,12 @@ bool CompilerStack::compile(State _stopAfter)
 		string const evmSourceName = m_sourceJsons.begin()->first;
 		Json::Value const evmJson = m_sourceJsons.begin()->second;
 
-		evmasm::Assembly::OptimiserSettings optimiserSettings =
-			evmasm::Assembly::OptimiserSettings::translateSettings(m_optimiserSettings, m_evmVersion);
-
 		m_contracts[evmSourceName].evmAssembly = evmasm::Assembly::loadFromAssemblyJSON(m_sourceJsons[evmSourceName]);
-		if (m_optimiserSettings.enabled)
-			m_contracts[evmSourceName].evmAssembly->optimise(optimiserSettings);
+		solAssert(m_contracts[evmSourceName].evmAssembly->isCreation() == true);
 		m_contracts[evmSourceName].object = m_contracts[evmSourceName].evmAssembly->assemble();
 
 		m_contracts[evmSourceName].evmRuntimeAssembly = make_shared<evmasm::Assembly>(m_contracts[evmSourceName].evmAssembly->sub(0));
 		solAssert(m_contracts[evmSourceName].evmRuntimeAssembly->isCreation() == false);
-		if (m_optimiserSettings.enabled)
-			m_contracts[evmSourceName].evmRuntimeAssembly->optimise(optimiserSettings);
 		m_contracts[evmSourceName].runtimeObject = m_contracts[evmSourceName].evmRuntimeAssembly->assemble();
 	}
 	else
@@ -767,7 +760,7 @@ bool CompilerStack::compile(State _stopAfter)
 								throw;
 						}
 					}
-				}
+	}
 	m_stackState = CompilationSuccessful;
 	this->link();
 	return true;
