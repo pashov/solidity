@@ -425,25 +425,24 @@ void CompilerStack::importASTs(map<string, Json::Value> const& _sources)
 	storeContractDefinitions();
 }
 
-void CompilerStack::importEvmAssemblyJson(map<string, Json::Value> const& _sources)
+void CompilerStack::importEvmAssemblyJson(pair<string, Json::Value> const& _sources)
 {
-	solAssert(_sources.size() == 1, "");
 	solAssert(m_sourceJsons.empty(), "");
 	solAssert(m_sourceOrder.empty(), "");
 	if (m_stackState != Empty)
 		solThrow(CompilerError, "Must call importEvmAssemblyJson only before the SourcesSet state.");
 
-	m_sourceJsons = _sources;
-	Json::Value jsonValue = _sources.begin()->second;
+	m_sourceJsons.insert(_sources);
+	Json::Value jsonValue = _sources.second;
 	if (jsonValue.isMember("sourceList"))
-		for (auto const& item: jsonValue["sourceList"])
+		for (auto const& sourceUnitName: jsonValue["sourceList"])
 		{
 			Source source;
-			source.charStream = make_shared<CharStream>(item.asString(), "");
-			m_sources.emplace(make_pair(item.asString(), source));
-			m_sourceOrder.push_back(&m_sources[item.asString()]);
+			source.charStream = make_shared<CharStream>(sourceUnitName.asString(), "");
+			m_sources.emplace(make_pair(sourceUnitName.asString(), source));
+			m_sourceOrder.push_back(&m_sources[sourceUnitName.asString()]);
 		}
-	m_sourceJsons[_sources.begin()->first] = std::move(jsonValue);
+	m_sourceJsons[_sources.first] = std::move(jsonValue);
 	m_compilationSourceType = CompilationSourceType::EvmAssemblyJson;
 	m_stackState = SourcesSet;
 }
@@ -743,8 +742,8 @@ bool CompilerStack::compile(State _stopAfter)
 						}
 						catch (UnimplementedFeatureError const& _unimplementedError)
 						{
-							if (SourceLocation const* sourceLocation
-								= boost::get_error_info<langutil::errinfo_sourceLocation>(_unimplementedError))
+							if (SourceLocation const* sourceLocation =
+									boost::get_error_info<langutil::errinfo_sourceLocation>(_unimplementedError))
 							{
 								string const* comment = _unimplementedError.comment();
 								m_errorReporter.error(

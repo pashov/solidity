@@ -142,7 +142,7 @@ static map<InputMode, string> const g_inputModeName = {
 	{InputMode::StandardJson, "standard JSON"},
 	{InputMode::Linker, "linker"},
 	{InputMode::LanguageServer, "language server (LSP)"},
-	{InputMode::CompilerWithEvmAssemblyJsonImport, "assembler (EVM ASM JSON import)"},
+	{InputMode::EVMAssemblerJSON, "EVM assembler (JSON format)"},
 };
 
 void CommandLineParser::checkMutuallyExclusive(vector<string> const& _optionNames)
@@ -486,7 +486,7 @@ void CommandLineParser::parseOutputSelection()
 		case InputMode::Compiler:
 		case InputMode::CompilerWithASTImport:
 			return util::contains(compilerModeOutputs, _outputName);
-		case InputMode::CompilerWithEvmAssemblyJsonImport:
+		case InputMode::EVMAssemblerJSON:
 			return util::contains(evmAssemblyJsonImportModeOutputs, _outputName);
 		case InputMode::Assembler:
 			return util::contains(assemblerModeOutputs, _outputName);
@@ -682,7 +682,7 @@ General Information)").c_str(),
 		)
 		(
 			g_strImportEvmAssemblerJson.c_str(),
-			"Import EVM Assembly JSON, assumes input holds the EVM Assembly in JSON format."
+			"Import EVM assembly from JSON. Assumes input is in the format used by --asm-json."
 		)
 		(
 			g_strLSP.c_str(),
@@ -952,7 +952,7 @@ void CommandLineParser::processArgs()
 	else if (m_args.count(g_strImportAst) > 0)
 		m_options.input.mode = InputMode::CompilerWithASTImport;
 	else if (m_args.count(g_strImportEvmAssemblerJson) > 0)
-		m_options.input.mode = InputMode::CompilerWithEvmAssemblyJsonImport;
+		m_options.input.mode = InputMode::EVMAssemblerJSON;
 	else
 		m_options.input.mode = InputMode::Compiler;
 
@@ -1020,17 +1020,7 @@ void CommandLineParser::processArgs()
 
 	array<string, 12> const conflictingWithAsmJsonImport{
 		g_strOptimize,
-		CompilerOutputs::componentName(&CompilerOutputs::ir),
-		CompilerOutputs::componentName(&CompilerOutputs::irOptimized),
-		CompilerOutputs::componentName(&CompilerOutputs::ewasm),
-		CompilerOutputs::componentName(&CompilerOutputs::ewasmIR),
 		g_strGas,
-		CompilerOutputs::componentName(&CompilerOutputs::metadata),
-		CompilerOutputs::componentName(&CompilerOutputs::natspecDev),
-		CompilerOutputs::componentName(&CompilerOutputs::natspecUser),
-		CompilerOutputs::componentName(&CompilerOutputs::signatureHashes),
-		CompilerOutputs::componentName(&CompilerOutputs::storageLayout),
-		CompilerOutputs::componentName(&CompilerOutputs::astCompactJson),
 	};
 
 	for (auto& option: conflictingWithAsmJsonImport)
@@ -1039,7 +1029,7 @@ void CommandLineParser::processArgs()
 	if (
 		m_options.input.mode != InputMode::Compiler &&
 		m_options.input.mode != InputMode::CompilerWithASTImport &&
-		m_options.input.mode != InputMode::CompilerWithEvmAssemblyJsonImport &&
+		m_options.input.mode != InputMode::EVMAssemblerJSON &&
 		m_options.input.mode != InputMode::Assembler
 	)
 	{
@@ -1393,8 +1383,7 @@ void CommandLineParser::processArgs()
 	solAssert(
 		m_options.input.mode == InputMode::Compiler ||
 		m_options.input.mode == InputMode::CompilerWithASTImport ||
-		m_options.input.mode == InputMode::CompilerWithEvmAssemblyJsonImport
-	);
+		m_options.input.mode == InputMode::EVMAssemblerJSON);
 }
 
 void CommandLineParser::parseCombinedJsonOption()
