@@ -31,6 +31,7 @@
 #include <libsolidity/interface/SMTSolverCommand.h>
 #include <libyul/YulStack.h>
 
+#include "libevmasm/AssemblyStack.h"
 #include <iostream>
 #include <memory>
 #include <string>
@@ -94,6 +95,8 @@ private:
 
 	void assemble(yul::YulStack::Language _language, yul::YulStack::Machine _targetMachine);
 
+	void assembleFromEvmAssemblyJson();
+
 	void outputCompilationResults();
 
 	void handleCombinedJSON();
@@ -117,7 +120,7 @@ private:
 	/// or standard-json output
 	std::map<std::string, Json::Value> parseAstFromInput();
 
-	std::pair<std::string, Json::Value> parseEvmAssemblyJsonFromInput();
+	std::pair<std::string, Json::Value> parseEvmAssemblyJsonFromInput() const;
 
 	/// Create a file in the given directory
 	/// @arg _fileName the name of the file
@@ -146,6 +149,7 @@ private:
 	UniversalCallback m_universalCallback{m_fileReader, m_solverCommand};
 	std::optional<std::string> m_standardJsonInput;
 	std::unique_ptr<frontend::CompilerStack> m_compiler;
+	std::unique_ptr<evmasm::AssemblyStack> m_assembly;
 	CommandLineOptions m_options;
 };
 

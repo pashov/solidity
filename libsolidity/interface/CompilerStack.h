@@ -235,10 +235,6 @@ public:
 	/// Will throw errors if the import fails
 	void importASTs(std::map<std::string, Json::Value> const& _sources);
 
-	/// Imports given EVM Assembly JSON. Leads to the same internal state as parse().
-	/// Will throw errors if the import fails
-	void importEvmAssemblyJson(std::pair<std::string, Json::Value> const& _sources);
-
 	/// Performs the analysis steps (imports, scopesetting, syntaxCheck, referenceResolving,
 	///  typechecking, staticAnalysis) on previously parsed sources.
 	/// @returns false on error.

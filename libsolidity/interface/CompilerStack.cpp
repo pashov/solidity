@@ -425,28 +425,6 @@ void CompilerStack::importASTs(map<string, Json::Value> const& _sources)
 	storeContractDefinitions();
 }
 
-void CompilerStack::importEvmAssemblyJson(pair<string, Json::Value> const& _sources)
-{
-	solAssert(m_sourceJsons.empty(), "");
-	solAssert(m_sourceOrder.empty(), "");
-	if (m_stackState != Empty)
-		solThrow(CompilerError, "Must call importEvmAssemblyJson only before the SourcesSet state.");
-
-	m_sourceJsons.insert(_sources);
-	Json::Value jsonValue = _sources.second;
-	if (jsonValue.isMember("sourceList"))
-		for (auto const& sourceUnitName: jsonValue["sourceList"])
-		{
-			Source source;
-			source.charStream = make_shared<CharStream>(sourceUnitName.asString(), "");
-			m_sources.emplace(make_pair(sourceUnitName.asString(), source));
-			m_sourceOrder.push_back(&m_sources[sourceUnitName.asString()]);
-		}
-	m_sourceJsons[_sources.first] = std::move(jsonValue);
-	m_compilationSourceType = CompilationSourceType::EvmAssemblyJson;
-	m_stackState = SourcesSet;
-}
-
 bool CompilerStack::analyze()
 {
 	if (m_stackState != ParsedAndImported || m_stackState >= AnalysisPerformed)
@@ -697,69 +675,51 @@ bool CompilerStack::compile(State _stopAfter)
 	// Only compile contracts individually which have been requested.
 	map<ContractDefinition const*, shared_ptr<Compiler const>> otherCompilers;
 
-	if (m_compilationSourceType == CompilationSourceType::EvmAssemblyJson)
-	{
-		solAssert(m_sourceJsons.size() == 1);
-
-		string const evmSourceName = m_sourceJsons.begin()->first;
-		Json::Value const evmJson = m_sourceJsons.begin()->second;
-
-		m_contracts[evmSourceName].evmAssembly = evmasm::Assembly::loadFromAssemblyJSON(m_sourceJsons[evmSourceName]);
-		solAssert(m_contracts[evmSourceName].evmAssembly->isCreation() == true);
-		m_contracts[evmSourceName].object = m_contracts[evmSourceName].evmAssembly->assemble();
-
-		m_contracts[evmSourceName].evmRuntimeAssembly = make_shared<evmasm::Assembly>(m_contracts[evmSourceName].evmAssembly->sub(0));
-		solAssert(m_contracts[evmSourceName].evmRuntimeAssembly->isCreation() == false);
-		m_contracts[evmSourceName].runtimeObject = m_contracts[evmSourceName].evmRuntimeAssembly->assemble();
-	}
-	else
-	{
-		for (Source const* source: m_sourceOrder)
-			for (ASTPointer<ASTNode> const& node: source->ast->nodes())
-				if (auto contract = dynamic_cast<ContractDefinition const*>(node.get()))
-					if (isRequestedContract(*contract))
+	for (Source const* source: m_sourceOrder)
+		for (ASTPointer<ASTNode> const& node: source->ast->nodes())
+			if (auto contract = dynamic_cast<ContractDefinition const*>(node.get()))
+				if (isRequestedContract(*contract))
+				{
+					try
 					{
-						try
+						if (m_viaIR || m_generateIR || m_generateEwasm)
+							generateIR(*contract);
+						if (m_generateEvmBytecode)
 						{
-							if (m_viaIR || m_generateIR || m_generateEwasm)
-								generateIR(*contract);
-							if (m_generateEvmBytecode)
-							{
-								if (m_viaIR)
-									generateEVMFromIR(*contract);
-								else
-									compileContract(*contract, otherCompilers);
-							}
-							if (m_generateEwasm)
-								generateEwasm(*contract);
+							if (m_viaIR)
+								generateEVMFromIR(*contract);
+							else
+								compileContract(*contract, otherCompilers);
 						}
-						catch (Error const& _error)
+						if (m_generateEwasm)
+							generateEwasm(*contract);
+					}
+					catch (Error const& _error)
+					{
+						if (_error.type() != Error::Type::CodeGenerationError)
+							throw;
+						m_errorReporter.error(_error.errorId(), _error.type(), SourceLocation(), _error.what());
+						return false;
+					}
+					catch (UnimplementedFeatureError const& _unimplementedError)
+					{
+						if (SourceLocation const* sourceLocation =
+								boost::get_error_info<langutil::errinfo_sourceLocation>(_unimplementedError))
 						{
-							if (_error.type() != Error::Type::CodeGenerationError)
-								throw;
-							m_errorReporter.error(_error.errorId(), _error.type(), SourceLocation(), _error.what());
+							string const* comment = _unimplementedError.comment();
+							m_errorReporter.error(
+								1834_error,
+								Error::Type::CodeGenerationError,
+								*sourceLocation,
+								"Unimplemented feature error"
+									+ ((comment && !comment->empty()) ? ": " + *comment : string{}) + " in "
+									+ _unimplementedError.lineInfo());
 							return false;
 						}
-						catch (UnimplementedFeatureError const& _unimplementedError)
-						{
-							if (SourceLocation const* sourceLocation =
-									boost::get_error_info<langutil::errinfo_sourceLocation>(_unimplementedError))
-							{
-								string const* comment = _unimplementedError.comment();
-								m_errorReporter.error(
-									1834_error,
-									Error::Type::CodeGenerationError,
-									*sourceLocation,
-									"Unimplemented feature error"
-										+ ((comment && !comment->empty()) ? ": " + *comment : string{}) + " in "
-										+ _unimplementedError.lineInfo());
-								return false;
-							}
-							else
-								throw;
-						}
+						else
+							throw;
 					}
-	}
+				}
 	m_stackState = CompilationSuccessful;
 	this->link();
 	return true;

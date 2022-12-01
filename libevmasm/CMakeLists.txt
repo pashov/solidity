@@ -3,6 +3,8 @@ set(sources
 	Assembly.h
 	AssemblyItem.cpp
 	AssemblyItem.h
+	AssemblyStack.cpp
+	AssemblyStack.h
 	BlockDeduplicator.cpp
 	BlockDeduplicator.h
 	CommonSubexpressionEliminator.cpp
