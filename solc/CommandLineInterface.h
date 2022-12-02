@@ -29,9 +29,9 @@
 #include <libsolidity/interface/FileReader.h>
 #include <libsolidity/interface/UniversalCallback.h>
 #include <libsolidity/interface/SMTSolverCommand.h>
+#include <libevmasm/AssemblyStack.h>
 #include <libyul/YulStack.h>
 
-#include "libevmasm/AssemblyStack.h"
 #include <iostream>
 #include <memory>
 #include <string>
@@ -101,6 +101,7 @@ private:
 
 	void handleCombinedJSON();
 	void handleAst();
+	void handleEVMAssembly(std::string const& _contract);
 	void handleBinary(std::string const& _contract);
 	void handleOpcode(std::string const& _contract);
 	void handleIR(std::string const& _contract);

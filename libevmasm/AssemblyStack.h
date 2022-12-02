@@ -23,8 +23,8 @@
 
 #include <libsolutil/JSON.h>
 
-#include "Assembly.h"
-#include "LinkerObject.h"
+#include <libevmasm/Assembly.h>
+#include <libevmasm/LinkerObject.h>
 
 namespace solidity::evmasm
 {
@@ -57,7 +57,7 @@ private:
 	Json::Value m_json;
 	std::shared_ptr<evmasm::Assembly> m_evmAssembly;
 	std::shared_ptr<evmasm::Assembly> m_evmRuntimeAssembly;
-	evmasm::LinkerObject m_object;		  ///< Deployment object (includes the runtime sub-object).
+	evmasm::LinkerObject m_object; ///< Deployment object (includes the runtime sub-object).
 	evmasm::LinkerObject m_runtimeObject; ///< Runtime object.
 };
 

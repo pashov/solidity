@@ -1399,6 +1399,29 @@ void CommandLineParser::parseCombinedJsonOption()
 	m_options.compiler.combinedJsonRequests = CombinedJsonRequests{};
 	for (auto&& [componentName, component]: CombinedJsonRequests::componentMap())
 		m_options.compiler.combinedJsonRequests.value().*component = (requests.count(componentName) > 0);
+
+	if (m_options.input.mode == InputMode::EVMAssemblerJSON && m_options.compiler.combinedJsonRequests.has_value())
+	{
+		static bool CombinedJsonRequests::* invalidOptions[]{
+			&CombinedJsonRequests::abi,
+			&CombinedJsonRequests::ast,
+			&CombinedJsonRequests::funDebug,
+			&CombinedJsonRequests::funDebugRuntime,
+			&CombinedJsonRequests::generatedSources,
+			&CombinedJsonRequests::generatedSourcesRuntime,
+			&CombinedJsonRequests::metadata,
+			&CombinedJsonRequests::natspecDev,
+			&CombinedJsonRequests::natspecUser,
+			&CombinedJsonRequests::signatureHashes,
+			&CombinedJsonRequests::storageLayout
+		};
+
+		for (auto const invalidOption: invalidOptions)
+			if (m_options.compiler.combinedJsonRequests.value().*invalidOption)
+				solThrow(
+					CommandLineValidationError,
+					"Invalid option to --" + g_strCombinedJson + ": " + CombinedJsonRequests::componentName(invalidOption) + " for --" + g_strImportEvmAssemblerJson);
+	}
 }
 
 size_t CommandLineParser::countEnabledOptions(vector<string> const& _optionNames) const

@@ -46,7 +46,6 @@
 #include <libevmasm/Instruction.h>
 #include <libevmasm/Disassemble.h>
 #include <libevmasm/GasMeter.h>
-#include <libevmasm/AssemblyStack.h>
 
 #include <liblangutil/Exceptions.h>
 #include <liblangutil/SourceReferenceFormatter.h>
@@ -169,28 +168,85 @@ static bool coloredOutput(CommandLineOptions const& _options)
 		(_options.formatting.coloredOutput.has_value() && _options.formatting.coloredOutput.value());
 }
 
+void CommandLineInterface::handleEVMAssembly(string const& _contract)
+{
+	solAssert(CompilerInputModes.count(m_options.input.mode) == 1);
+
+	if (m_options.compiler.outputs.asm_ || m_options.compiler.outputs.asmJson)
+	{
+		string assembly;
+		if (m_options.input.mode == InputMode::EVMAssemblerJSON)
+		{
+			if (m_options.compiler.outputs.asmJson)
+				assembly = util::jsonPrint(
+					removeNullMembers(m_assembly->evmAssembly()->assemblyJSON(m_assembly->sourceIndices())),
+					m_options.formatting.json);
+			else
+			{
+				langutil::DebugInfoSelection debugInfoSelection;
+				if (m_options.output.debugInfoSelection.has_value())
+					debugInfoSelection = m_options.output.debugInfoSelection.value();
+				assembly = m_assembly->evmAssembly()->assemblyString(debugInfoSelection);
+			}
+		}
+		else
+		{
+			if (m_options.compiler.outputs.asmJson)
+				assembly = util::jsonPrint(removeNullMembers(m_compiler->assemblyJSON(_contract)), m_options.formatting.json);
+			else
+				assembly = m_compiler->assemblyString(_contract, m_fileReader.sourceUnits());
+		}
+
+		if (!m_options.output.dir.empty())
+			createFile(
+				m_compiler->filesystemFriendlyName(_contract)
+					+ (m_options.compiler.outputs.asmJson ? "_evm.json" : ".evm"),
+				assembly);
+		else
+			sout() << "EVM assembly:" << endl << assembly << endl;
+	}
+}
+
 void CommandLineInterface::handleBinary(string const& _contract)
 {
 	solAssert(CompilerInputModes.count(m_options.input.mode) == 1);
 
+	string binary;
+	string binaryRuntime;
+	if (m_options.input.mode == InputMode::EVMAssemblerJSON)
+	{
+		solAssert(m_assembly);
+		if (m_options.compiler.outputs.binary)
+			binary = objectWithLinkRefsHex(m_assembly->object());
+		if (m_options.compiler.outputs.binaryRuntime)
+			binaryRuntime = objectWithLinkRefsHex(m_assembly->runtimeObject());
+	}
+	else
+	{
+		if (m_options.compiler.outputs.binary)
+			binary = objectWithLinkRefsHex(m_compiler->object(_contract));
+		if (m_options.compiler.outputs.binaryRuntime)
+			binaryRuntime = objectWithLinkRefsHex(m_compiler->runtimeObject(_contract));
+	}
+
 	if (m_options.compiler.outputs.binary)
 	{
 		if (!m_options.output.dir.empty())
-			createFile(m_compiler->filesystemFriendlyName(_contract) + ".bin", objectWithLinkRefsHex(m_compiler->object(_contract)));
+			createFile(m_compiler->filesystemFriendlyName(_contract) + ".bin", binary);
 		else
 		{
 			sout() << "Binary:" << endl;
-			sout() << objectWithLinkRefsHex(m_compiler->object(_contract)) << endl;
+			sout() << binary << endl;
 		}
 	}
 	if (m_options.compiler.outputs.binaryRuntime)
 	{
 		if (!m_options.output.dir.empty())
-			createFile(m_compiler->filesystemFriendlyName(_contract) + ".bin-runtime", objectWithLinkRefsHex(m_compiler->runtimeObject(_contract)));
+			createFile(m_compiler->filesystemFriendlyName(_contract) + ".bin-runtime", binaryRuntime);
 		else
 		{
 			sout() << "Binary of the runtime part:" << endl;
-			sout() << objectWithLinkRefsHex(m_compiler->runtimeObject(_contract)) << endl;
+			sout() << binaryRuntime << endl;
 		}
 	}
 }
@@ -199,8 +255,17 @@ void CommandLineInterface::handleOpcode(string const& _contract)
 {
 	solAssert(CompilerInputModes.count(m_options.input.mode) == 1);
 
+	string opcodes;
+	if (m_options.input.mode == InputMode::EVMAssemblerJSON)
+	{
+		solAssert(m_assembly);
+		opcodes = evmasm::disassemble(m_assembly->object().bytecode, m_options.output.evmVersion));
+	}
+	else
+		opcodes = evmasm::disassemble(m_compiler->object(_contract).bytecode, m_options.output.evmVersion));
+
 	if (!m_options.output.dir.empty())
-		createFile(m_compiler->filesystemFriendlyName(_contract) + ".opcode", evmasm::disassemble(m_compiler->object(_contract).bytecode, m_options.output.evmVersion));
+		createFile(m_compiler->filesystemFriendlyName(_contract) + ".opcode", opcodes);
 	else
 	{
 		sout() << "Opcodes:" << endl;
@@ -831,6 +896,8 @@ void CommandLineInterface::handleCombinedJSON()
 	{
 		solAssert(m_assembly);
 		Json::Value& contractData = output[g_strContracts][m_assembly->name()] = Json::objectValue;
+		if (m_options.compiler.combinedJsonRequests->asm_)
+			contractData[g_strAsm] = m_assembly->evmAssembly()->assemblyJSON(m_assembly->sourceIndices(), true);
 		if (m_options.compiler.combinedJsonRequests->binary)
 			contractData[g_strBinary] = m_assembly->object().toHex();
 		if (m_options.compiler.combinedJsonRequests->binaryRuntime)
@@ -1170,11 +1237,13 @@ void CommandLineInterface::assemble(yul::YulStack::Language _language, yul::YulS
 void CommandLineInterface::assembleFromEvmAssemblyJson()
 {
 	auto input{parseEvmAssemblyJsonFromInput()};
-	m_assembly = std::make_unique<evmasm::AssemblyStack>(input.first, input.second);
+	std::string const& filename = input.first;
+	m_assembly = std::make_unique<evmasm::AssemblyStack>(filename, input.second);
 	m_assembly->assemble();
 
 	handleCombinedJSON();
-
+	handleBytecode(input.first);
+	handleEVMAssembly(input.first);
 }
 
 void CommandLineInterface::outputCompilationResults()
@@ -1202,19 +1271,7 @@ void CommandLineInterface::outputCompilationResults()
 			sout() << endl << "======= " << contract << " =======" << endl;
 
 		// do we need EVM assembly?
-		if (m_options.compiler.outputs.asm_ || m_options.compiler.outputs.asmJson)
-		{
-			string ret;
-			if (m_options.compiler.outputs.asmJson)
-				ret = util::jsonPrint(removeNullMembers(m_compiler->assemblyJSON(contract)), m_options.formatting.json);
-			else
-				ret = m_compiler->assemblyString(contract, m_fileReader.sourceUnits());
-
-			if (!m_options.output.dir.empty())
-				createFile(m_compiler->filesystemFriendlyName(contract) + (m_options.compiler.outputs.asmJson ? "_evm.json" : ".evm"), ret);
-			else
-				sout() << "EVM assembly:" << endl << ret << endl;
-		}
+		handleEVMAssembly(contract);
 
 		if (m_options.compiler.estimateGas)
 			handleGasEstimation(contract);

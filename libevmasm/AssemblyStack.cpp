@@ -16,7 +16,7 @@
 */
 // SPDX-License-Identifier: GPL-3.0
 
-#include "AssemblyStack.h"
+#include <libevmasm/AssemblyStack.h>
 
 #include <liblangutil/Exceptions.h>
 #include <libsolidity/codegen/CompilerContext.h>
