@@ -36,21 +36,15 @@ public:
 
 	void assemble();
 
-	std::string const& name() { return m_name; }
+	std::string const& name() const { return m_name; }
 
-	evmasm::LinkerObject const& object() { return m_object; }
+	evmasm::LinkerObject const& object() const { return m_object; }
 
 	std::shared_ptr<evmasm::Assembly> const& evmAssembly() const { return m_evmAssembly; }
 
-	evmasm::LinkerObject const& runtimeObject() { return m_runtimeObject; }
+	evmasm::LinkerObject const& runtimeObject() const { return m_runtimeObject; }
 
 	std::shared_ptr<evmasm::Assembly> const& evmRuntimeAssembly() const { return m_evmRuntimeAssembly; }
-
-	std::map<std::string, unsigned> sourceIndices() const;
-
-	std::optional<std::string> sourceMapping();
-
-	std::optional<std::string> runtimeSourceMapping();
 
 private:
 	std::string m_name;

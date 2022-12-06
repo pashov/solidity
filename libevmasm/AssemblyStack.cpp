@@ -32,44 +32,16 @@ namespace solidity::evmasm
 
 AssemblyStack::AssemblyStack(std::string _name, Json::Value _json): m_name(std::move(_name)), m_json(std::move(_json))
 {
+	m_evmAssembly = evmasm::Assembly::loadFromAssemblyJSON(m_json);
 }
 
 void AssemblyStack::assemble()
 {
-	m_evmAssembly = evmasm::Assembly::loadFromAssemblyJSON(m_json);
 	solAssert(m_evmAssembly->isCreation() == true);
 	m_object = m_evmAssembly->assemble();
 	m_evmRuntimeAssembly = make_shared<evmasm::Assembly>(m_evmAssembly->sub(0));
 	solAssert(m_evmRuntimeAssembly->isCreation() == false);
 	m_runtimeObject = m_evmRuntimeAssembly->assemble();
-}
-
-map<string, unsigned> AssemblyStack::sourceIndices() const
-{
-	map<string, unsigned> indices;
-	unsigned index = 0;
-	for (auto const& s: m_evmAssembly->sources())
-		if (*s != CompilerContext::yulUtilityFileName())
-			indices[*s] = index++;
-	if (indices.find(CompilerContext::yulUtilityFileName()) == indices.end())
-		indices[CompilerContext::yulUtilityFileName()] = index++;
-	return indices;
-}
-
-std::optional<std::string> AssemblyStack::sourceMapping()
-{
-	std::optional<std::string const> result;
-	if (!m_evmRuntimeAssembly->items().empty())
-		result.emplace(evmasm::AssemblyItem::computeSourceMapping(m_evmAssembly->items(), sourceIndices()));
-	return result;
-}
-
-std::optional<std::string> AssemblyStack::runtimeSourceMapping()
-{
-	std::optional<std::string const> result;
-	if (!m_evmRuntimeAssembly->items().empty())
-		result.emplace(evmasm::AssemblyItem::computeSourceMapping(m_evmRuntimeAssembly->items(), sourceIndices()));
-	return result;
 }
 
 } // namespace solidity::evmasm
