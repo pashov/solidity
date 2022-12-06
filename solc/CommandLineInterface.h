@@ -85,6 +85,7 @@ private:
 	void printVersion();
 	void printLicense();
 	void compile();
+	void assemble();
 	void serveLSP();
 	void link();
 	void writeLinkedFiles();
@@ -94,8 +95,6 @@ private:
 	static std::string objectWithLinkRefsHex(evmasm::LinkerObject const& _obj);
 
 	void assemble(yul::YulStack::Language _language, yul::YulStack::Machine _targetMachine);
-
-	void assembleFromEvmAssemblyJson();
 
 	void outputCompilationResults();
 
@@ -150,7 +149,6 @@ private:
 	UniversalCallback m_universalCallback{m_fileReader, m_solverCommand};
 	std::optional<std::string> m_standardJsonInput;
 	std::unique_ptr<frontend::CompilerStack> m_compiler;
-	std::unique_ptr<evmasm::AssemblyStack> m_assembly;
 	CommandLineOptions m_options;
 };
 
