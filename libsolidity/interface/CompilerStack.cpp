@@ -425,6 +425,22 @@ void CompilerStack::importASTs(map<string, Json::Value> const& _sources)
 	storeContractDefinitions();
 }
 
+void CompilerStack::importEvmAssembly(std::string const& _filename, Json::Value const& _json)
+{
+	if (m_stackState != Empty)
+		solThrow(CompilerError, "Must call importASTs only before the SourcesSet state.");
+	m_sourceJsons[_filename] = _json;
+	Source source;
+	source.charStream = make_shared<CharStream>(
+		util::jsonCompactPrint(m_sourceJsons[_filename]),
+		_filename,
+		true // imported from AST
+	);
+	m_assemblyStack = std::make_unique<evmasm::AssemblyStack>(_filename, _json);
+	m_stackState = ParsedAndImported;
+	m_compilationSourceType = CompilationSourceType::EvmAssemblyJson;
+}
+
 bool CompilerStack::analyze()
 {
 	if (m_stackState != ParsedAndImported || m_stackState >= AnalysisPerformed)
@@ -659,8 +675,40 @@ bool CompilerStack::isRequestedContract(ContractDefinition const& _contract) con
 	return false;
 }
 
+bool CompilerStack::assemble()
+{
+	solAssert(m_compilationSourceType == CompilationSourceType::EvmAssemblyJson);
+	solAssert(m_sourceJsons.size() == 1);
+
+	if (m_stackState < AnalysisPerformed)
+		if (!parseAndAnalyze())
+			return false;
+
+	if (m_stackState >= m_stopAfter)
+		return true;
+
+	if (m_hasError)
+		solThrow(CompilerError, "Called compile with errors.");
+
+	m_assemblyStack->assemble();
+	// create dummy sources for source maps.
+	for (auto const& name: m_assemblyStack->evmAssembly()->sources())
+		m_sources[*name].reset();
+	m_sources[CompilerContext::yulUtilityFileName()].reset();
+
+	Contract& contract = m_contracts[m_assemblyStack->name()];
+	contract.evmAssembly = m_assemblyStack->evmAssembly();
+	contract.evmRuntimeAssembly = m_assemblyStack->evmRuntimeAssembly();
+	contract.object = m_assemblyStack->object();
+	contract.runtimeObject = m_assemblyStack->runtimeObject();
+
+	m_stackState = CompilationSuccessful;
+	return true;
+}
+
 bool CompilerStack::compile(State _stopAfter)
 {
+	solAssert(m_compilationSourceType != CompilationSourceType::EvmAssemblyJson);
 	m_stopAfter = _stopAfter;
 	if (m_stackState < AnalysisPerformed)
 		if (!parseAndAnalyze(_stopAfter))

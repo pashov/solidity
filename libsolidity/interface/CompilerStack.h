@@ -42,6 +42,7 @@
 #include <liblangutil/SourceLocation.h>
 
 #include <libevmasm/LinkerObject.h>
+#include <libevmasm/AssemblyStack.h>
 
 #include <libsolutil/Common.h>
 #include <libsolutil/FixedHash.h>
@@ -235,6 +236,10 @@ public:
 	/// Will throw errors if the import fails
 	void importASTs(std::map<std::string, Json::Value> const& _sources);
 
+	/// Imports given Evm Assembly Json so they can be analyzed. Leads to the same internal state as parse().
+	/// Will throw errors if the import fails
+	void importEvmAssembly(std::string const& _filename, Json::Value const& _json);
+
 	/// Performs the analysis steps (imports, scopesetting, syntaxCheck, referenceResolving,
 	///  typechecking, staticAnalysis) on previously parsed sources.
 	/// @returns false on error.
@@ -247,6 +252,10 @@ public:
 	/// Compiles the source units that were previously added and parsed.
 	/// @returns false on error.
 	bool compile(State _stopAfter = State::CompilationSuccessful);
+
+	/// Assembles the imported EVM Assembly JSON.
+	/// @returns false on error.
+	bool assemble();
 
 	/// @returns the list of sources (paths) used
 	std::vector<std::string> sourceNames() const;
@@ -520,6 +529,7 @@ private:
 	std::shared_ptr<GlobalContext> m_globalContext;
 	std::vector<Source const*> m_sourceOrder;
 	std::map<std::string const, Contract> m_contracts;
+	std::unique_ptr<evmasm::AssemblyStack> m_assemblyStack;
 
 	langutil::ErrorList m_errorList;
 	langutil::ErrorReporter m_errorReporter;
