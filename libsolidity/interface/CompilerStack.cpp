@@ -430,15 +430,9 @@ void CompilerStack::importEvmAssembly(std::string const& _filename, Json::Value 
 	if (m_stackState != Empty)
 		solThrow(CompilerError, "Must call importASTs only before the SourcesSet state.");
 	m_sourceJsons[_filename] = _json;
-	Source source;
-	source.charStream = make_shared<CharStream>(
-		util::jsonCompactPrint(m_sourceJsons[_filename]),
-		_filename,
-		true // imported from AST
-	);
-	m_assemblyStack = std::make_unique<evmasm::AssemblyStack>(_filename, _json);
+	m_assemblyStack = std::make_unique<evmasm::EvmAssemblyStack>(_filename, _json);
 	m_stackState = ParsedAndImported;
-	m_compilationSourceType = CompilationSourceType::EvmAssemblyJson;
+	m_compilationSourceType = CompilationSourceType::EvmAssemblyJSON;
 }
 
 bool CompilerStack::analyze()
@@ -639,7 +633,7 @@ bool CompilerStack::parseAndAnalyze(State _stopAfter)
 {
 	m_stopAfter = _stopAfter;
 
-	if (m_compilationSourceType == CompilationSourceType::EvmAssemblyJson)
+	if (m_compilationSourceType == CompilationSourceType::EvmAssemblyJSON)
 		return true;
 
 	bool success = parse();
@@ -675,9 +669,9 @@ bool CompilerStack::isRequestedContract(ContractDefinition const& _contract) con
 	return false;
 }
 
-bool CompilerStack::assemble()
+bool CompilerStack::assembleEvm()
 {
-	solAssert(m_compilationSourceType == CompilationSourceType::EvmAssemblyJson);
+	solAssert(m_compilationSourceType == CompilationSourceType::EvmAssemblyJSON);
 	solAssert(m_sourceJsons.size() == 1);
 
 	if (m_stackState < AnalysisPerformed)
@@ -692,9 +686,8 @@ bool CompilerStack::assemble()
 
 	m_assemblyStack->assemble();
 	// create dummy sources for source maps.
-	for (auto const& name: m_assemblyStack->evmAssembly()->sources())
-		m_sources[*name].reset();
-	m_sources[CompilerContext::yulUtilityFileName()].reset();
+	for (auto const& name: m_assemblyStack->evmAssembly()->sourceUnitNames())
+		m_sources[name].reset();
 
 	Contract& contract = m_contracts[m_assemblyStack->name()];
 	contract.evmAssembly = m_assemblyStack->evmAssembly();
@@ -708,7 +701,7 @@ bool CompilerStack::assemble()
 
 bool CompilerStack::compile(State _stopAfter)
 {
-	solAssert(m_compilationSourceType != CompilationSourceType::EvmAssemblyJson);
+	solAssert(m_compilationSourceType != CompilationSourceType::EvmAssemblyJSON);
 	m_stopAfter = _stopAfter;
 	if (m_stackState < AnalysisPerformed)
 		if (!parseAndAnalyze(_stopAfter))
@@ -751,8 +744,10 @@ bool CompilerStack::compile(State _stopAfter)
 					}
 					catch (UnimplementedFeatureError const& _unimplementedError)
 					{
-						if (SourceLocation const* sourceLocation =
-								boost::get_error_info<langutil::errinfo_sourceLocation>(_unimplementedError))
+						if (
+							SourceLocation const* sourceLocation =
+								boost::get_error_info<langutil::errinfo_sourceLocation>(_unimplementedError)
+						)
 						{
 							string const* comment = _unimplementedError.comment();
 							m_errorReporter.error(
@@ -761,7 +756,8 @@ bool CompilerStack::compile(State _stopAfter)
 								*sourceLocation,
 								"Unimplemented feature error"
 									+ ((comment && !comment->empty()) ? ": " + *comment : string{}) + " in "
-									+ _unimplementedError.lineInfo());
+									+ _unimplementedError.lineInfo()
+							);
 							return false;
 						}
 						else
@@ -1009,8 +1005,8 @@ map<string, unsigned> CompilerStack::sourceIndices() const
 	for (auto const& s: m_sources)
 		if (s.first != CompilerContext::yulUtilityFileName())
 			indices[s.first] = index++;
-	if (indices.find(CompilerContext::yulUtilityFileName()) == indices.end())
-		indices[CompilerContext::yulUtilityFileName()] = index++;
+	solAssert(!indices.count(CompilerContext::yulUtilityFileName()), "");
+	indices[CompilerContext::yulUtilityFileName()] = index++;
 	return indices;
 }
 
@@ -1303,7 +1299,7 @@ bool onlySafeExperimentalFeaturesActivated(set<ExperimentalFeature> const& featu
 }
 }
 
-void CompilerStack::assemble(
+void CompilerStack::assembleYul(
 	ContractDefinition const& _contract,
 	shared_ptr<evmasm::Assembly> _assembly,
 	shared_ptr<evmasm::Assembly> _runtimeAssembly
@@ -1398,7 +1394,7 @@ void CompilerStack::compileContract(
 
 	_otherCompilers[compiledContract.contract] = compiler;
 
-	assemble(_contract, compiler->assemblyPtr(), compiler->runtimeAssemblyPtr());
+	assembleYul(_contract, compiler->assemblyPtr(), compiler->runtimeAssemblyPtr());
 }
 
 void CompilerStack::generateIR(ContractDefinition const& _contract)
@@ -1476,7 +1472,7 @@ void CompilerStack::generateEVMFromIR(ContractDefinition const& _contract)
 	string deployedName = IRNames::deployedObject(_contract);
 	solAssert(!deployedName.empty(), "");
 	tie(compiledContract.evmAssembly, compiledContract.evmRuntimeAssembly) = stack.assembleEVMWithDeployed(deployedName);
-	assemble(_contract, compiledContract.evmAssembly, compiledContract.evmRuntimeAssembly);
+	assembleYul(_contract, compiledContract.evmAssembly, compiledContract.evmRuntimeAssembly);
 }
 
 void CompilerStack::generateEwasm(ContractDefinition const& _contract)
@@ -1568,7 +1564,7 @@ string CompilerStack::createMetadata(Contract const& _contract, bool _forIR) con
 	case CompilationSourceType::SolidityAST:
 		sourceType = "SolidityAST";
 		break;
-	case CompilationSourceType::EvmAssemblyJson:
+	case CompilationSourceType::EvmAssemblyJSON:
 		sourceType = "EvmAssemblyJson";
 		break;
 	default:

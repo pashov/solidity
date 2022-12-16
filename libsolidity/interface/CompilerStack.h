@@ -41,8 +41,8 @@
 #include <liblangutil/EVMVersion.h>
 #include <liblangutil/SourceLocation.h>
 
+#include <libevmasm/EvmAssemblyStack.h>
 #include <libevmasm/LinkerObject.h>
-#include <libevmasm/AssemblyStack.h>
 
 #include <libsolutil/Common.h>
 #include <libsolutil/FixedHash.h>
@@ -123,8 +123,8 @@ public:
 		Solidity,
 		/// Compilation from an imported Solidity AST.
 		SolidityAST,
-		/// Compilation from an imported EVM Assembly JSON
-		EvmAssemblyJson
+		/// Compilation from an imported EVM Assembly JSON.
+		EvmAssemblyJSON
 	};
 
 	/// Creates a new compiler stack.
@@ -255,7 +255,7 @@ public:
 
 	/// Assembles the imported EVM Assembly JSON.
 	/// @returns false on error.
-	bool assemble();
+	bool assembleEvm();
 
 	/// @returns the list of sources (paths) used
 	std::vector<std::string> sourceNames() const;
@@ -434,7 +434,7 @@ private:
 
 	/// Assembles the contract.
 	/// This function should only be internally called by compileContract and generateEVMFromIR.
-	void assemble(
+	void assembleYul(
 		ContractDefinition const& _contract,
 		std::shared_ptr<evmasm::Assembly> _assembly,
 		std::shared_ptr<evmasm::Assembly> _runtimeAssembly
@@ -529,7 +529,7 @@ private:
 	std::shared_ptr<GlobalContext> m_globalContext;
 	std::vector<Source const*> m_sourceOrder;
 	std::map<std::string const, Contract> m_contracts;
-	std::unique_ptr<evmasm::AssemblyStack> m_assemblyStack;
+	std::unique_ptr<evmasm::EvmAssemblyStack> m_assemblyStack;
 
 	langutil::ErrorList m_errorList;
 	langutil::ErrorReporter m_errorReporter;
