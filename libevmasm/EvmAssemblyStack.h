@@ -29,10 +29,10 @@
 namespace solidity::evmasm
 {
 
-class AssemblyStack
+class EvmAssemblyStack
 {
 public:
-	explicit AssemblyStack(std::string _name, Json::Value _json);
+	explicit EvmAssemblyStack(std::string _name, Json::Value _json);
 
 	void assemble();
 

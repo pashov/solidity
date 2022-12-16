@@ -16,7 +16,7 @@
 */
 // SPDX-License-Identifier: GPL-3.0
 
-#include <libevmasm/AssemblyStack.h>
+#include <libevmasm/EvmAssemblyStack.h>
 
 #include <liblangutil/Exceptions.h>
 #include <libsolidity/codegen/CompilerContext.h>
@@ -30,17 +30,20 @@ using namespace std;
 namespace solidity::evmasm
 {
 
-AssemblyStack::AssemblyStack(std::string _name, Json::Value _json): m_name(std::move(_name)), m_json(std::move(_json))
+EvmAssemblyStack::EvmAssemblyStack(std::string _name, Json::Value _json):
+	m_name(std::move(_name)),
+	m_json(std::move(_json))
 {
-	m_evmAssembly = evmasm::Assembly::loadFromAssemblyJSON(m_json);
+	m_evmAssembly = evmasm::Assembly::fromJSON(m_json, {}, true);
+	solAssert(m_evmAssembly);
 }
 
-void AssemblyStack::assemble()
+void EvmAssemblyStack::assemble()
 {
-	solAssert(m_evmAssembly->isCreation() == true);
+	solAssert(m_evmAssembly->isCreation());
 	m_object = m_evmAssembly->assemble();
 	m_evmRuntimeAssembly = make_shared<evmasm::Assembly>(m_evmAssembly->sub(0));
-	solAssert(m_evmRuntimeAssembly->isCreation() == false);
+	solAssert(!m_evmRuntimeAssembly->isCreation());
 	m_runtimeObject = m_evmRuntimeAssembly->assemble();
 }
 

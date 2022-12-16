@@ -256,7 +256,7 @@ void AssemblyItem::setJumpType(string const& _jumpType)
 	else if (_jumpType.empty())
 		m_jumpType = JumpType::Ordinary;
 	else
-		assertThrow(false, AssemblyException, "Invalid jump type.");
+		solThrow(AssemblyException, "Invalid jump type.");
 }
 
 string AssemblyItem::toAssemblyText(Assembly const& _assembly) const

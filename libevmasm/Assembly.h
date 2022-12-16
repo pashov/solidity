@@ -155,11 +155,16 @@ public:
 		bool _includeSourceList = true
 	) const;
 
-	/// Loads the JSON representation of assembly.
-	/// @param _json JSON object containing assembly
-	/// @param _loadSources true, if source list should be included, false otherwise.
-	/// @returns true on success, false otherwise
-	static std::shared_ptr<Assembly> loadFromAssemblyJSON(Json::Value const& _json, std::vector<std::string> const& _sourceList = {}, bool _isCreation = true);
+	/// Loads the JSON representation of assembly in the format produced by assemblyJSON().
+	/// @param _json JSON object containing assembly.
+	/// @param _sourceList list of source names.
+	/// @param _isCreation if true, resulting assembly code is marked as creation code, otherwise as runtime code.
+	/// @returns Resulting Assembly object loaded from given json.
+	static std::shared_ptr<Assembly> fromJSON(
+		Json::Value const& _json,
+		std::vector<std::string> const& _sourceList,
+		bool _isCreation
+	);
 
 	/// Mark this assembly as invalid. Calling ``assemble`` on it will throw.
 	void markAsInvalid() { m_invalid = true; }
@@ -169,21 +174,15 @@ public:
 
 	bool isCreation() const { return m_creation; }
 
-	/// Set the source name list.
-	void setSources(std::vector<std::shared_ptr<std::string const>> _sources)
-	{
-		m_sources = std::move(_sources);
-	}
-
 	/// Set the source name list from simple vector<string>.
 	void setSources(std::vector<std::string> const& _sources)
 	{
 		for (auto const& item: _sources)
-			m_sources.emplace_back(std::make_shared<std::string>(item));
+			m_sourceUnitNames.emplace_back(item);
 	}
 
 	/// @returns List of source names.
-	std::vector<std::shared_ptr<std::string const>> sources() const& { return m_sources; }
+	std::vector<std::string> const& sourceUnitNames() const { return m_sourceUnitNames; }
 
 protected:
 	/// Does the same operations as @a optimise, but should only be applied to a sub and
@@ -193,8 +192,9 @@ protected:
 
 	unsigned codeSize(unsigned subTagSize) const;
 
-	/// Add all assembly items from given JSON array.
-	void addAssemblyItemsFromJSON(Json::Value const& _code);
+	/// Add all assembly items from given JSON array. This function imports the items by iterating through
+	/// the code array.
+	void importAssemblyItemsFromJSON(Json::Value const& _code);
 
 	/// Creates an AssemblyItem from a given JSON representation.
 	/// @param _json JSON representation of an assembly item
@@ -249,7 +249,7 @@ protected:
 	std::string m_name;
 
 	langutil::SourceLocation m_currentSourceLocation;
-	std::vector<std::shared_ptr<std::string const>> m_sources;
+	std::vector<std::string> m_sourceUnitNames;
 
 public:
 	size_t m_currentModifierDepth = 0;
