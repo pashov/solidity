@@ -444,6 +444,11 @@ BOOST_AUTO_TEST_CASE(import_evm_asm_no_optimiser)
 	BOOST_CHECK_EXCEPTION(parseCommandLine({"solc", "contract.sol", "--optimize", "--import-asm-json"}), CommandLineValidationError, hasCorrectMessage);
 }
 
+BOOST_AUTO_TEST_CASE(import_evm_asm_all_valid_flags)
+{
+	BOOST_CHECK_NO_THROW(parseCommandLine({"solc", "--import-asm-json", "contract.sol", "--combined-json", "bin,bin-runtime,opcodes,asm,srcmap,srcmap-runtime", "--asm", "--bin", "--bin-runtime", "--asm-json"}));
+}
+
 BOOST_AUTO_TEST_CASE(default_optimiser_sequence)
 {
 	CommandLineOptions const& commandLineOptions = parseCommandLine({"solc", "contract.sol", "--optimize"});
