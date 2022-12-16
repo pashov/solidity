@@ -24,12 +24,12 @@
 
 #include <solc/CommandLineParser.h>
 
+#include <libevmasm/EvmAssemblyStack.h>
 #include <libsolidity/interface/CompilerStack.h>
 #include <libsolidity/interface/DebugSettings.h>
 #include <libsolidity/interface/FileReader.h>
-#include <libsolidity/interface/UniversalCallback.h>
 #include <libsolidity/interface/SMTSolverCommand.h>
-#include <libevmasm/AssemblyStack.h>
+#include <libsolidity/interface/UniversalCallback.h>
 #include <libyul/YulStack.h>
 
 #include <iostream>

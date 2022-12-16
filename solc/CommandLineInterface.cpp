@@ -751,7 +751,7 @@ void CommandLineInterface::assemble()
 	m_compiler = make_unique<CompilerStack>(m_universalCallback.callback());
 	auto [filename, json] = parseEvmAssemblyJsonFromInput();
 	m_compiler->importEvmAssembly(filename, json);
-	m_compiler->assemble();
+	m_compiler->assembleEvm();
 }
 
 void CommandLineInterface::compile()
@@ -945,9 +945,9 @@ void CommandLineInterface::handleCombinedJSON()
 				contractData[g_strNatspecUser] = m_compiler->natspecUser(contractName);
 		}
 
-		bool needsSourceList = m_options.compiler.combinedJsonRequests->ast
-								|| m_options.compiler.combinedJsonRequests->srcMap
-								|| m_options.compiler.combinedJsonRequests->srcMapRuntime;
+		bool needsSourceList = m_options.compiler.combinedJsonRequests->ast ||
+								m_options.compiler.combinedJsonRequests->srcMap ||
+								m_options.compiler.combinedJsonRequests->srcMapRuntime;
 		if (needsSourceList)
 		{
 			// Indices into this array are used to abbreviate source names in source locations.
