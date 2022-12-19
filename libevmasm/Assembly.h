@@ -163,7 +163,7 @@ public:
 	static std::shared_ptr<Assembly> fromJSON(
 		Json::Value const& _json,
 		std::vector<std::string> const& _sourceList,
-		bool _isCreation
+		int _level
 	);
 
 	/// Mark this assembly as invalid. Calling ``assemble`` on it will throw.

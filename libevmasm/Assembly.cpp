@@ -78,21 +78,25 @@ unsigned Assembly::codeSize(unsigned subTagSize) const
 void Assembly::importAssemblyItemsFromJSON(Json::Value const& _code)
 {
 	solAssert(m_items.empty());
-	solThrowIf(!_code.isArray(), AssemblyImportException, "Supplied JSON is not an array.");
+	solRequire(_code.isArray(), AssemblyImportException, "Supplied JSON is not an array.");
 	for (Json::Value const& jsonItem: _code)
 		m_items.emplace_back(createAssemblyItemFromJSON(jsonItem));
 
 	for (auto current = m_items.begin(); current != m_items.end(); ++current)
 	{
 		// During the assembly json export a `JUMPDEST` is always generated after a `tag`.
-		// So we just ignore exactly these `JUMPDEST`'s during import.
+		// So we just ignore exactly these `JUMPDEST`s during import.
 		auto const nextIter = next(current);
-		if (nextIter != m_items.end() && current->type() == AssemblyItemType::Tag
-			&& nextIter->type() == AssemblyItemType::Operation && nextIter->instruction() == Instruction::JUMPDEST)
+		if (
+			nextIter != m_items.end() &&
+			current->type() == AssemblyItemType::Tag &&
+			nextIter->type() == AssemblyItemType::Operation &&
+			nextIter->instruction() == Instruction::JUMPDEST
+		)
 			m_items.erase(nextIter);
 	}
 
-	// All other `JUMPDEST`'s that where not followed by a tag are treated as a fatal error.
+	// All other `JUMPDEST`'s that were not followed by a tag are treated as a fatal error.
 	for (auto const& item: m_items)
 		if (item.type() == AssemblyItemType::Operation && item.instruction() == Instruction::JUMPDEST)
 			throw langutil::Error(
@@ -104,29 +108,28 @@ void Assembly::importAssemblyItemsFromJSON(Json::Value const& _code)
 
 AssemblyItem Assembly::createAssemblyItemFromJSON(Json::Value const& _json)
 {
-	solThrowIf(!_json.isObject(), AssemblyImportException, "Supplied JSON is not an object.");
-	static set<string> validMembers{"name", "begin", "end", "source", "value", "modifierDepth", "jumpType"};
-	for (auto const& member: _json.getMemberNames())
-		solThrowIf(validMembers.count(member) == 0, AssemblyImportException, "Unknown member '" + member + "'.");
-	solThrowIf(!isOfType<string>(_json["name"]), AssemblyImportException, "Attribute 'name' not of type string.");
-	solThrowIf(!isOfType<int>(_json["begin"]), AssemblyImportException, "Attribute 'begin' not of type int.");
-	solThrowIf(!isOfType<int>(_json["end"]), AssemblyImportException, "Attribute 'end' not of type int.");
-	solThrowIf(!isOfType<int>(_json["source"]), AssemblyImportException, "Attribute 'source' not of type int.");
-	solThrowIf(!isOfTypeIfExists<string>(_json, "value"), AssemblyImportException, "Optional attribute 'value' not of type string.");
-	solThrowIf(
-		!isOfTypeIfExists<int>(_json, "modifierDepth"),
+	solRequire(_json.isObject(), AssemblyImportException, "Supplied JSON is not an object.");
+	static set<string> const validMembers{"name", "begin", "end", "source", "value", "modifierDepth", "jumpType"};
+	for (auto const& attribute: _json.getMemberNames())
+		solRequire(validMembers.count(attribute), AssemblyImportException, "Unknown attribute '" + attribute + "'.");
+	solRequire(isOfType<string>(_json["name"]), AssemblyImportException, "Attribute 'name' not of type string.");
+	solRequire(isOfType<int>(_json["begin"]), AssemblyImportException, "Attribute 'begin' not of type int.");
+	solRequire(isOfType<int>(_json["end"]), AssemblyImportException, "Attribute 'end' not of type int.");
+	solRequire(isOfType<int>(_json["source"]), AssemblyImportException, "Attribute 'source' not of type int.");
+	solRequire(isOfTypeIfExists<string>(_json, "value"), AssemblyImportException, "Optional attribute 'value' not of type string.");
+	solRequire(
+		isOfTypeIfExists<int>(_json, "modifierDepth"),
 		AssemblyImportException,
 		"Optional attribute 'modifierDepth' not of type int."
 	);
-	solThrowIf(
-		!isOfTypeIfExists<string>(_json, "jumpType"),
+	solRequire(
+		isOfTypeIfExists<string>(_json, "jumpType"),
 		AssemblyImportException,
 		"Optional attribute 'jumpType' not of type string."
 	);
 
-
 	string name = getOrDefault<string>(_json["name"], "");
-	solThrowIf(name.empty(), AssemblyImportException, "Attribute 'name' not defined or empty.");
+	solRequire(!name.empty(), AssemblyImportException, "Attribute 'name' was empty.");
 
 	SourceLocation location;
 	location.start = get<int>(_json["begin"]);
@@ -182,12 +185,17 @@ AssemblyItem Assembly::createAssemblyItemFromJSON(Json::Value const& _json)
 	}
 	else
 	{
+		solRequire(
+			jumpType.empty(),
+			AssemblyImportException,
+			"Attribute 'jumpType' set on instruction different from JUMP or JUMPI (was set on instruction '" + name + "')"
+		);
 		if (name == "PUSH")
 			result = {AssemblyItemType::Push, u256("0x" + value)};
 		else if (name == "PUSH [ErrorTag]")
 		{
-			solThrowIf(
-				!value.empty(),
+			solRequire(
+				value.empty(),
 				AssemblyImportException,
 				"Attribute 'value' defined for instruction '" + name + "', but instruction don't need a value."
 			);
@@ -201,10 +209,10 @@ AssemblyItem Assembly::createAssemblyItemFromJSON(Json::Value const& _json)
 			result = {AssemblyItemType::PushSubSize, u256("0x" + value)};
 		else if (name == "PUSHSIZE")
 		{
-			solThrowIf(
-				!value.empty(),
+			solRequire(
+				value.empty(),
 				AssemblyImportException,
-				"Attribute 'value' defined for instruction '" + name + "', but instruction don't need a value."
+				"Attribute 'value' defined for instruction '" + name + "', but the instruction does not need a value."
 			);
 			result = {AssemblyItemType::PushProgramSize, 0};
 		}
@@ -212,10 +220,10 @@ AssemblyItem Assembly::createAssemblyItemFromJSON(Json::Value const& _json)
 			result = {AssemblyItemType::PushLibraryAddress, storeLibraryHash(value)};
 		else if (name == "PUSHDEPLOYADDRESS")
 		{
-			solThrowIf(
-				!value.empty(),
+			solRequire(
+				value.empty(),
 				AssemblyImportException,
-				"Attribute 'value' defined for instruction '" + name + "', but instruction don't need a value."
+				"Attribute 'value' defined for instruction '" + name + "', but the instruction does not need a value."
 			);
 			result = {AssemblyItemType::PushDeployTimeAddress, 0};
 		}
@@ -229,16 +237,16 @@ AssemblyItem Assembly::createAssemblyItemFromJSON(Json::Value const& _json)
 			result = {AssemblyItemType::PushData, u256("0x" + value)};
 		else if (name == "VERBATIM")
 		{
-			solThrowIf(
-				!value.empty(),
+			solRequire(
+				value.empty(),
 				AssemblyImportException,
-				"Attribute 'value' defined for instruction '" + name + "', but instruction don't need a value."
+				"Attribute 'value' defined for instruction '" + name + "', but the instruction does not need a value."
 			);
 			AssemblyItem item(fromHex(value), 0, 0);
 			result = item;
 		}
 		else
-			assertThrow(false, InvalidOpcode, "");
+			solThrow(InvalidOpcode, "Invalid opcode: " + name);
 	}
 	result.setLocation(location);
 	result.m_modifierDepth = modifierDepth;
@@ -469,31 +477,38 @@ Json::Value Assembly::assemblyJSON(map<string, unsigned> const& _sourceIndices, 
 	return root;
 }
 
-shared_ptr<Assembly> Assembly::fromJSON(Json::Value const& _json, vector<string> const& _sourceList, bool _isCreation)
+shared_ptr<Assembly> Assembly::fromJSON(Json::Value const& _json, vector<string> const& _sourceList, int _level)
 {
-	solThrowIf(!_json.isObject(), AssemblyImportException, "Supplied JSON is not an object.");
-	static set<string> validMembers{".code", ".data", ".auxdata", "sourceList"};
-	for (auto const& member: _json.getMemberNames())
-		solThrowIf(validMembers.count(member) == 0, AssemblyImportException, "Unknown member '" + member + "'.");
-	solThrowIf(!_json[".code"].isArray(), AssemblyImportException, "Attribute '.code' is not an array.");
+	solRequire(_json.isObject(), AssemblyImportException, "Supplied JSON is not an object.");
+	static set<string> const validMembers{".code", ".data", ".auxdata", "sourceList"};
+	for (auto const& attribute: _json.getMemberNames())
+		solRequire(validMembers.count(attribute), AssemblyImportException, "Unknown attribute '" + attribute + "'.");
+	solRequire(_json.isMember(".code"), AssemblyImportException, "Attribute '.code' does not exist.");
+	solRequire(_json[".code"].isArray(), AssemblyImportException, "Attribute '.code' is not an array.");
 
-	shared_ptr<Assembly> result = make_shared<Assembly>(_isCreation, "");
+	if (_level == 0)
+	{
+		solRequire(_json.isMember("sourceList"), AssemblyImportException, "Attribute 'sourceList' does not exist.");
+		solRequire(_json["sourceList"].isArray(), AssemblyImportException, "Attribute 'sourceList' is not an array.");
+	} else
+		solRequire(
+			!_json.isMember("sourceList"),
+			AssemblyImportException,
+			"Attribute 'sourceList' is only allowed in root JSON object."
+		);
+
+	shared_ptr<Assembly> result = make_shared<Assembly>(_level == 0, "");
 	vector<string> sourceList;
 	if (_sourceList.empty())
 	{
+		solAssert(_level == 0);
 		if (_json.isMember("sourceList"))
 			for (auto const& it: _json["sourceList"])
 				sourceList.emplace_back(it.asString());
 	}
 	else
-	{
-		solThrowIf(
-			_json.isMember("sourceList"),
-			AssemblyException,
-			"Attribute 'sourceList' is only allowed in root JSON object."
-		);
 		sourceList = _sourceList;
-	}
+
 	result->setSources(sourceList);
 	result->importAssemblyItemsFromJSON(_json[".code"]);
 	if (_json[".auxdata"].isString())
@@ -511,8 +526,8 @@ shared_ptr<Assembly> Assembly::fromJSON(Json::Value const& _json, vector<string>
 				result->m_data[h256(fromHex(dataItemID))] = fromHex(code.asString());
 			else
 			{
-				shared_ptr<Assembly> subassembly(Assembly::fromJSON(code, sourceList, /* isCreation = */ false));
-				assertThrow(subassembly, AssemblyImportException, "Could not import JSON.");
+				shared_ptr<Assembly> subassembly(Assembly::fromJSON(code, sourceList, _level + 1));
+				solAssert(subassembly);
 				result->m_subs.emplace_back(make_shared<Assembly>(*subassembly));
 			}
 		}

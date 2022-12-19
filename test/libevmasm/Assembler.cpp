@@ -234,7 +234,7 @@ BOOST_AUTO_TEST_CASE(error_on_jumpdest_without_tag)
 	util::jsonParseStrict(json_jumpdest_error, jsonValue);
 	try
 	{
-		solidity::evmasm::Assembly::fromJSON(jsonValue, {}, true);
+		solidity::evmasm::Assembly::fromJSON(jsonValue, {}, 0);
 	}
 	catch (solidity::langutil::Error& error)
 	{
