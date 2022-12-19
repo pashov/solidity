@@ -41,7 +41,7 @@
 #include <liblangutil/EVMVersion.h>
 #include <liblangutil/SourceLocation.h>
 
-#include <libevmasm/EvmAssemblyStack.h>
+#include <libevmasm/EVMAssemblyStack.h>
 #include <libevmasm/LinkerObject.h>
 
 #include <libsolutil/Common.h>
@@ -529,7 +529,7 @@ private:
 	std::shared_ptr<GlobalContext> m_globalContext;
 	std::vector<Source const*> m_sourceOrder;
 	std::map<std::string const, Contract> m_contracts;
-	std::unique_ptr<evmasm::EvmAssemblyStack> m_assemblyStack;
+	std::unique_ptr<evmasm::EVMAssemblyStack> m_assemblyStack;
 
 	langutil::ErrorList m_errorList;
 	langutil::ErrorReporter m_errorReporter;

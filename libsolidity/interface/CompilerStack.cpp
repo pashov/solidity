@@ -430,7 +430,7 @@ void CompilerStack::importEvmAssembly(std::string const& _filename, Json::Value 
 	if (m_stackState != Empty)
 		solThrow(CompilerError, "Must call importASTs only before the SourcesSet state.");
 	m_sourceJsons[_filename] = _json;
-	m_assemblyStack = std::make_unique<evmasm::EvmAssemblyStack>(_filename, _json);
+	m_assemblyStack = std::make_unique<evmasm::EVMAssemblyStack>(_filename, _json);
 	m_stackState = ParsedAndImported;
 	m_compilationSourceType = CompilationSourceType::EvmAssemblyJSON;
 }
