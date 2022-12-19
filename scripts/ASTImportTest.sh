@@ -25,11 +25,11 @@
 #     and exporting it again. The second JSON should be identical to the first.
 #
 # evm-assembly import/export tests:
-#   - first a .sol file will be exported to an combined json file, containing outputs
+#   - first a .sol file will be exported to a combined json file, containing outputs
 #     for "asm" "bin" "bin-runtime" "opcodes" "srcmap" and "srcmap-runtime" (expected output).
-#     The "asm" output will then be used as import, where it's output "bin" "bin-runtime"
+#     The "asm" output will then be used as import, where its output "bin" "bin-runtime"
 #     "opcodes" "srcmap" "srcmap-runtime" (obtained output) will be compared with the expected output.
-#     The expected output need to be identical with the obtained output.
+#     The expected output needs to be identical with the obtained output.
 #
 #     Additionally to this, the direct import/export is tested by importing an
 #     evm-assembly json with --import-asm-json and directly exporting it again with
@@ -157,7 +157,7 @@ function test_evmjson_import_export_equivalence
     then
         success=0
         printError "ERROR: (export) EVM Assembly JSON reimport failed for ${sol_file}"
-        if [[ $EXIT_ON_ERROR == 1 ]]
+        if (( EXIT_ON_ERROR == 1 ))
         then
             print_used_commands "$(pwd)" "${export_command[*]}" ""
             return 1
@@ -167,7 +167,7 @@ function test_evmjson_import_export_equivalence
     then
         success=0
         printError "ERROR: (export with --optimize) EVM Assembly JSON reimport failed for ${sol_file}"
-        if [[ $EXIT_ON_ERROR == 1 ]]
+        if (( EXIT_ON_ERROR == 1 ))
         then
             print_used_commands "$(pwd)" "${export_command[*]} --optimize" ""
             return 1
@@ -182,11 +182,11 @@ function test_evmjson_import_export_equivalence
             optimize_param="--optimize"
         fi
 
-        # Note that we have some test files, that only consists of free functions.
-        # Those files doesn't define any contracts, so the resulting json does not define any
-        # keys. In this case `jq` returns an error like `jq: error: null (null) has no keys`
-        # to not get spammed by these errors, errors are redirected to /dev/null.
-        for contract in $(jq '.contracts | keys | .[]' $input_json 2> /dev/null)
+        # Note that we have some test files, that only consist of free functions.
+        # Those files don't define any contracts, so the resulting JSON does not have any
+        # keys. In this case `jq` returns an error like `jq: error: null (null) has no keys`.
+        # To not get spammed by these errors, errors are redirected to /dev/null.
+        for contract in $(jq '.contracts | keys | .[]' "$input_json" 2> /dev/null)
         do
             for output in "${outputs[@]}"
             do
@@ -201,7 +201,7 @@ function test_evmjson_import_export_equivalence
             then
                 success=0
                 printError "ERROR: (import) EVM Assembly JSON reimport failed for ${sol_file}"
-                if [[ $EXIT_ON_ERROR == 1 ]]
+                if (( EXIT_ON_ERROR == 1 ))
                 then
                     print_used_commands "$(pwd)" "${export_command[*]} ${optimize_param}" "${import_command[*]}"
                     return 1
@@ -218,7 +218,7 @@ function test_evmjson_import_export_equivalence
                     then
                         success=0
                         printError "ERROR: (${output}) EVM Assembly JSON reimport failed for ${sol_file}"
-                        if [[ $EXIT_ON_ERROR == 1 ]]
+                        if (( EXIT_ON_ERROR == 1 ))
                         then
                             print_used_commands "$(pwd)" "${export_command[*]} ${optimize_param}" "${import_command[*]}"
                             return 1
@@ -232,7 +232,7 @@ function test_evmjson_import_export_equivalence
             then
                 success=0
                 printError "ERROR: (direct) EVM Assembly JSON reimport failed for ${sol_file}"
-                if [[ $EXIT_ON_ERROR == 1 ]]
+                if (( EXIT_ON_ERROR == 1 ))
                 then
                     print_used_commands "$(pwd)" "${SOLC} --asm-json --import-asm-json expected.asm.json --pretty-json --json-indent 4 | tail -n+4" ""
                     return 1
@@ -248,7 +248,7 @@ function test_evmjson_import_export_equivalence
             then
                 success=0
                 printError "ERROR: EVM Assembly JSON reimport failed for ${sol_file}"
-                if [[ $EXIT_ON_ERROR == 1 ]]
+                if (( EXIT_ON_ERROR == 1 ))
                 then
                     print_used_commands "$(pwd)" "${export_command[*]} ${optimize_param}" "${import_command[*]}"
                     return 1
