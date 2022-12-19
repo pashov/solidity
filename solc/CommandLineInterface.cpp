@@ -182,9 +182,10 @@ void CommandLineInterface::handleEVMAssembly(string const& _contract)
 
 		if (!m_options.output.dir.empty())
 			createFile(
-				m_compiler->filesystemFriendlyName(_contract)
-					+ (m_options.compiler.outputs.asmJson ? "_evm.json" : ".evm"),
-				assembly);
+				m_compiler->filesystemFriendlyName(_contract) +
+				(m_options.compiler.outputs.asmJson ? "_evm.json" : ".evm"),
+				assembly
+			);
 		else
 			sout() << "EVM assembly:" << endl << assembly << endl;
 	}

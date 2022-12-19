@@ -24,7 +24,7 @@
 
 #include <solc/CommandLineParser.h>
 
-#include <libevmasm/EvmAssemblyStack.h>
+#include <libevmasm/EVMAssemblyStack.h>
 #include <libsolidity/interface/CompilerStack.h>
 #include <libsolidity/interface/DebugSettings.h>
 #include <libsolidity/interface/FileReader.h>
