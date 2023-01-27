@@ -228,14 +228,7 @@ void CommandLineInterface::handleOpcode(string const& _contract)
 {
 	solAssert(CompilerInputModes.count(m_options.input.mode) == 1);
 
-	string opcodes;
-	if (m_options.input.mode == InputMode::EVMAssemblerJSON)
-	{
-		solAssert(m_assembly);
-		opcodes = evmasm::disassemble(m_assembly->object().bytecode, m_options.output.evmVersion));
-	}
-	else
-		opcodes = evmasm::disassemble(m_compiler->object(_contract).bytecode, m_options.output.evmVersion));
+	string opcodes{evmasm::disassemble(m_compiler->object(_contract).bytecode, m_options.output.evmVersion)};
 
 	if (!m_options.output.dir.empty())
 		createFile(m_compiler->filesystemFriendlyName(_contract) + ".opcode", opcodes);
@@ -889,7 +882,7 @@ void CommandLineInterface::handleCombinedJSON()
 		if (m_options.compiler.combinedJsonRequests->binaryRuntime)
 			contractData[g_strBinaryRuntime] = m_compiler->runtimeObject(fileName).toHex();
 		if (m_options.compiler.combinedJsonRequests->opcodes)
-			contractData[g_strOpcodes] = evmasm::disassemble(m_compiler->object(fileName).bytecode);
+			contractData[g_strOpcodes] = evmasm::disassemble(m_compiler->object(fileName).bytecode, m_options.output.evmVersion);
 		if (m_options.compiler.combinedJsonRequests->srcMap && m_compiler->sourceMapping(fileName))
 			contractData[g_strSrcMap] = *m_compiler->sourceMapping(fileName);
 		if (m_options.compiler.combinedJsonRequests->srcMapRuntime && m_compiler->runtimeSourceMapping(fileName))

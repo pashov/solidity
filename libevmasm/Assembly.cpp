@@ -497,7 +497,7 @@ shared_ptr<Assembly> Assembly::fromJSON(Json::Value const& _json, vector<string>
 			"Attribute 'sourceList' is only allowed in root JSON object."
 		);
 
-	shared_ptr<Assembly> result = make_shared<Assembly>(_level == 0, "");
+	shared_ptr<Assembly> result = make_shared<Assembly>(langutil::EVMVersion(), _level == 0, "");
 	vector<string> sourceList;
 	if (_sourceList.empty())
 	{
