@@ -113,9 +113,9 @@ AssemblyItem Assembly::createAssemblyItemFromJSON(Json::Value const& _json)
 	for (auto const& attribute: _json.getMemberNames())
 		solRequire(validMembers.count(attribute), AssemblyImportException, "Unknown attribute '" + attribute + "'.");
 	solRequire(isOfType<string>(_json["name"]), AssemblyImportException, "Attribute 'name' not of type string.");
-	solRequire(isOfType<int>(_json["begin"]), AssemblyImportException, "Attribute 'begin' not of type int.");
-	solRequire(isOfType<int>(_json["end"]), AssemblyImportException, "Attribute 'end' not of type int.");
-	solRequire(isOfType<int>(_json["source"]), AssemblyImportException, "Attribute 'source' not of type int.");
+	solRequire(isOfTypeIfExists<int>(_json, "begin"), AssemblyImportException, "Optional attribute 'begin' not of type int.");
+	solRequire(isOfTypeIfExists<int>(_json, "end"), AssemblyImportException, "Optional attribute 'end' not of type int.");
+	solRequire(isOfTypeIfExists<int>(_json, "source"), AssemblyImportException, "Optional attribute 'source' not of type int.");
 	solRequire(isOfTypeIfExists<string>(_json, "value"), AssemblyImportException, "Optional attribute 'value' not of type string.");
 	solRequire(
 		isOfTypeIfExists<int>(_json, "modifierDepth"),
@@ -134,7 +134,7 @@ AssemblyItem Assembly::createAssemblyItemFromJSON(Json::Value const& _json)
 	SourceLocation location;
 	location.start = get<int>(_json["begin"]);
 	location.end = get<int>(_json["end"]);
-	int srcIndex = get<int>(_json["source"]);
+	int srcIndex = getOrDefault<int>(_json["source"], -1);
 	size_t modifierDepth = static_cast<size_t>(getOrDefault<int>(_json["modifierDepth"], 0));
 	string value = getOrDefault<string>(_json["value"], "");
 	string jumpType = getOrDefault<string>(_json["jumpType"], "");
@@ -488,8 +488,8 @@ shared_ptr<Assembly> Assembly::fromJSON(Json::Value const& _json, vector<string>
 
 	if (_level == 0)
 	{
-		solRequire(_json.isMember("sourceList"), AssemblyImportException, "Attribute 'sourceList' does not exist.");
-		solRequire(_json["sourceList"].isArray(), AssemblyImportException, "Attribute 'sourceList' is not an array.");
+		if (_json.isMember("sourceList"))
+			solRequire(_json["sourceList"].isArray(), AssemblyImportException, "Attribute 'sourceList' is not an array.");
 	} else
 		solRequire(
 			!_json.isMember("sourceList"),
@@ -516,6 +516,7 @@ shared_ptr<Assembly> Assembly::fromJSON(Json::Value const& _json, vector<string>
 
 	if (_json.isMember(".data"))
 	{
+		solRequire(_json[".data"].isArray(), AssemblyImportException, "Optional attribute '.data' is not an array.");
 		Json::Value const& data = _json[".data"];
 		for (Json::ValueConstIterator dataIter = data.begin(); dataIter != data.end(); dataIter++)
 		{

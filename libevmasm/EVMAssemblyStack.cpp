@@ -42,10 +42,12 @@ void EVMAssemblyStack::assemble()
 {
 	solAssert(m_evmAssembly->isCreation());
 	m_object = m_evmAssembly->assemble();
-	solAssert(m_evmAssembly->numSubs() >= 1);
-	m_evmRuntimeAssembly = make_shared<evmasm::Assembly>(m_evmAssembly->sub(0));
-	solAssert(m_evmRuntimeAssembly && !m_evmRuntimeAssembly->isCreation());
-	m_runtimeObject = m_evmRuntimeAssembly->assemble();
+	if (m_evmAssembly->numSubs() > 0)
+	{
+		m_evmRuntimeAssembly = make_shared<evmasm::Assembly>(m_evmAssembly->sub(0));
+		solAssert(m_evmRuntimeAssembly && !m_evmRuntimeAssembly->isCreation());
+		m_runtimeObject = m_evmRuntimeAssembly->assemble();
+	}
 }
 
 } // namespace solidity::evmasm
