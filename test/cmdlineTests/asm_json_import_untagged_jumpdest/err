@@ -1,0 +1,5 @@
+Uncaught exception:
+/solidity/libevmasm/Assembly.cpp(102): Throw in function void solidity::evmasm::Assembly::importAssemblyItemsFromJSON(const Json::Value &)
+Dynamic exception type:
+std::exception::what: JUMPDEST instruction found that was not followed by tag.
+[solidity::util::tag_comment*] = JUMPDEST instruction found that was not followed by tag.

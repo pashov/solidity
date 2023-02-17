@@ -1018,13 +1018,30 @@ void CommandLineParser::processArgs()
 	for (auto& option: conflictingWithStopAfter)
 		checkMutuallyExclusive({g_strStopAfter, option});
 
-	array<string, 12> const conflictingWithAsmJsonImport{
-		g_strOptimize,
-		g_strGas,
-	};
+	if (m_options.input.mode == InputMode::EVMAssemblerJSON)
+	{
+		static set<string> const supportedByEvmAsmJsonImport{
+			g_strImportEvmAssemblerJson,
+			CompilerOutputs::componentName(&CompilerOutputs::asm_),
+			CompilerOutputs::componentName(&CompilerOutputs::binary),
+			CompilerOutputs::componentName(&CompilerOutputs::binaryRuntime),
+			CompilerOutputs::componentName(&CompilerOutputs::asmJson),
+			CompilerOutputs::componentName(&CompilerOutputs::opcodes),
+			g_strCombinedJson,
+			g_strInputFile,
+			g_strJsonIndent,
+			g_strPrettyJson,
+			"srcmap",
+			"srcmap-runtime",
+		};
 
-	for (auto& option: conflictingWithAsmJsonImport)
-		checkMutuallyExclusive({g_strImportEvmAssemblerJson, option});
+		for (auto const& option: m_args)
+			if (!option.second.defaulted() && !supportedByEvmAsmJsonImport.count(option.first))
+				solThrow(
+					CommandLineValidationError,
+					"Option --" + option.first + " is not supported with --"+g_strImportEvmAssemblerJson+"."
+				);
+	}
 
 	if (
 		m_options.input.mode != InputMode::Compiler &&

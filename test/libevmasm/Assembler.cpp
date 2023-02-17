@@ -215,33 +215,6 @@ BOOST_AUTO_TEST_CASE(all_assembly_items)
 	BOOST_CHECK_EQUAL(util::jsonCompactPrint(_assembly.assemblyJSON(indices)), util::jsonCompactPrint(jsonValue));
 }
 
-BOOST_AUTO_TEST_CASE(error_on_jumpdest_without_tag)
-{
-	string json_jumpdest_error{
-		R"({
-				".code":[
-					{"begin":56,"end":133,"name":"tag","source":0,"value":"2"},
-					{"begin":56,"end":133,"name":"JUMPDEST","source":0},
-					{"begin":56,"end":133,"name":"JUMPDEST","source":0}
-				],
-				"sourceList":[
-					"sol",
-					"#utility.yul"
-				]
-			})"
-	};
-	Json::Value jsonValue;
-	util::jsonParseStrict(json_jumpdest_error, jsonValue);
-	try
-	{
-		solidity::evmasm::Assembly::fromJSON(jsonValue, {}, 0);
-	}
-	catch (solidity::langutil::Error& error)
-	{
-		BOOST_CHECK(error.errorId() == 1285_error);
-	}
-}
-
 BOOST_AUTO_TEST_CASE(immutables_and_its_source_maps)
 {
 	EVMVersion evmVersion = solidity::test::CommonOptions::get().evmVersion();

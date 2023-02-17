@@ -1,0 +1,16 @@
+Opcodes:
+PUSH1 0x0 INVALID 
+EVM assembly:
+    /*   */
+  0x00
+stop
+
+sub_0: assembly {
+        /*   */
+      0x00
+}
+
+sub_1: assembly {
+        /*   */
+      0x00
+}

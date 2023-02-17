@@ -42,6 +42,7 @@ void EVMAssemblyStack::assemble()
 {
 	solAssert(m_evmAssembly->isCreation());
 	m_object = m_evmAssembly->assemble();
+//	solRequire(m_evmAssembly->numSubs() <= 1, AssemblyImportException, "You can only have exactly one or none subroutine(s).");
 	if (m_evmAssembly->numSubs() > 0)
 	{
 		m_evmRuntimeAssembly = make_shared<evmasm::Assembly>(m_evmAssembly->sub(0));

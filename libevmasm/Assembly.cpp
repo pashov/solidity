@@ -99,11 +99,7 @@ void Assembly::importAssemblyItemsFromJSON(Json::Value const& _code)
 	// All other `JUMPDEST`'s that were not followed by a tag are treated as a fatal error.
 	for (auto const& item: m_items)
 		if (item.type() == AssemblyItemType::Operation && item.instruction() == Instruction::JUMPDEST)
-			throw langutil::Error(
-				1285_error,
-				langutil::Error::Type::FatalError,
-				"JUMPDEST instruction found that was not followed by tag."
-			);
+			solThrow(AssemblyImportException, "JUMPDEST instruction found that was not followed by tag.");
 }
 
 AssemblyItem Assembly::createAssemblyItemFromJSON(Json::Value const& _json)
@@ -485,11 +481,17 @@ shared_ptr<Assembly> Assembly::fromJSON(Json::Value const& _json, vector<string>
 		solRequire(validMembers.count(attribute), AssemblyImportException, "Unknown attribute '" + attribute + "'.");
 	solRequire(_json.isMember(".code"), AssemblyImportException, "Attribute '.code' does not exist.");
 	solRequire(_json[".code"].isArray(), AssemblyImportException, "Attribute '.code' is not an array.");
+	for (auto const& codeItem: _json[".code"])
+		solRequire(codeItem.isObject(), AssemblyImportException, "Item of '.code' array is not an object.");
 
 	if (_level == 0)
 	{
 		if (_json.isMember("sourceList"))
-			solRequire(_json["sourceList"].isArray(), AssemblyImportException, "Attribute 'sourceList' is not an array.");
+		{
+			solRequire(_json["sourceList"].isArray(), AssemblyImportException, "Optional attribute 'sourceList' is not an array.");
+			for (auto const& sourceListItem: _json["sourceList"])
+				solRequire(sourceListItem.isString(), AssemblyImportException, "Item of 'sourceList' array is not of type string.");
+		}
 	} else
 		solRequire(
 			!_json.isMember("sourceList"),
@@ -501,26 +503,33 @@ shared_ptr<Assembly> Assembly::fromJSON(Json::Value const& _json, vector<string>
 	vector<string> sourceList;
 	if (_sourceList.empty())
 	{
-		solAssert(_level == 0);
 		if (_json.isMember("sourceList"))
+		{
+			solAssert(_level == 0);
 			for (auto const& it: _json["sourceList"])
 				sourceList.emplace_back(it.asString());
+		}
 	}
 	else
 		sourceList = _sourceList;
 
 	result->setSources(sourceList);
 	result->importAssemblyItemsFromJSON(_json[".code"]);
-	if (_json[".auxdata"].isString())
-		result->m_auxiliaryData = fromHex(_json[".auxdata"].asString());
+	if (_json[".auxdata"])
+	{
+		solRequire(_json[".auxdata"].isString(), AssemblyImportException, "Optional attribute '.auxdata' is not of type string.");
+		bytes auxdata{fromHex(_json[".auxdata"].asString())};
+		solRequire(!auxdata.empty(), AssemblyImportException, "Optional attribute '.auxdata' is not a valid hexadecimal string.");
+		result->m_auxiliaryData = auxdata;
+	}
 
 	if (_json.isMember(".data"))
 	{
-		solRequire(_json[".data"].isArray(), AssemblyImportException, "Optional attribute '.data' is not an array.");
+		solRequire(_json[".data"].isObject(), AssemblyImportException, "Optional attribute '.data' is not an object.");
 		Json::Value const& data = _json[".data"];
 		for (Json::ValueConstIterator dataIter = data.begin(); dataIter != data.end(); dataIter++)
 		{
-			solAssert(dataIter.key().isString());
+			solRequire(dataIter.key().isString(), AssemblyImportException, "Key inside '.data' is not of type string.");
 			string dataItemID = dataIter.key().asString();
 			Json::Value const& code = data[dataItemID];
 			if (code.isString())
@@ -532,6 +541,7 @@ shared_ptr<Assembly> Assembly::fromJSON(Json::Value const& _json, vector<string>
 				result->m_subs.emplace_back(make_shared<Assembly>(*subassembly));
 			}
 		}
+		// todo: warn, if more than one sub was found (because only one "runtime" object will get compiled)
 	}
 	return result;
 }
