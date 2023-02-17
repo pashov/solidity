@@ -19,9 +19,9 @@ parameters:
     type: string
     # solbuildpackpusher/solidity-buildpack-deps:ubuntu2204.clang-1
     default: "solbuildpackpusher/solidity-buildpack-deps@sha256:e515710752bfb38ee0e9b2f92ca71612c03ed85290c36c3b3c0a3d9f90187aef"
-  ubuntu-1604-clang-ossfuzz-docker-image:
+  ubuntu-clang-ossfuzz-docker-image:
     type: string
-    # solbuildpackpusher/solidity-buildpack-deps:ubuntu1604.clang.ossfuzz-22
+    # solbuildpackpusher/solidity-buildpack-deps:ubuntu.clang.ossfuzz-22
     default: "solbuildpackpusher/solidity-buildpack-deps@sha256:baf46ad78b131eb6b0bf98d50e9330437a338c6893b53af3853b36f6f4ab18ae"
   emscripten-docker-image:
     type: string
@@ -343,15 +343,15 @@ defaults:
         TERM: xterm
         MAKEFLAGS: -j 2
 
-  - base_ubuntu1604_clang: &base_ubuntu1604_clang
+  - base_ubuntu_clang: &base_ubuntu_clang
       docker:
-        - image: << pipeline.parameters.ubuntu-1604-clang-ossfuzz-docker-image >>
+        - image: << pipeline.parameters.ubuntu-clang-ossfuzz-docker-image >>
       environment:
         TERM: xterm
         MAKEFLAGS: -j 3
 
-  - base_ubuntu1604_clang_small: &base_ubuntu1604_clang_small
-      <<: *base_ubuntu1604_clang
+  - base_ubuntu_clang_small: &base_ubuntu_clang_small
+      <<: *base_ubuntu_clang
       resource_class: small
       environment:
         TERM: xterm
@@ -510,7 +510,7 @@ defaults:
       requires:
         - b_ems
 
-  - workflow_ubuntu1604_ossfuzz: &workflow_ubuntu1604_ossfuzz
+  - workflow_ubuntu_ossfuzz: &workflow_ubuntu_ossfuzz
       <<: *workflow_trigger_on_tags
       requires:
         - b_ubu_ossfuzz
@@ -916,7 +916,7 @@ jobs:
       - gitter_notify_failure_unless_pr
 
   b_ubu_ossfuzz: &b_ubu_ossfuzz
-    <<: *base_ubuntu1604_clang
+    <<: *base_ubuntu_clang
     steps:
       - checkout
       - run: *setup_prerelease_commit_hash
@@ -925,7 +925,7 @@ jobs:
       - gitter_notify_failure_unless_pr
 
   t_ubu_ossfuzz: &t_ubu_ossfuzz
-    <<: *base_ubuntu1604_clang_small
+    <<: *base_ubuntu_clang_small
     steps:
       - checkout
       - attach_workspace:
@@ -1712,7 +1712,7 @@ workflows:
     jobs:
       # OSSFUZZ builds and (regression) tests
       - b_ubu_ossfuzz: *workflow_trigger_on_tags
-      - t_ubu_ossfuzz: *workflow_ubuntu1604_ossfuzz
+      - t_ubu_ossfuzz: *workflow_ubuntu_ossfuzz
 
       # Code Coverage enabled build and tests
       - b_ubu_codecov: *workflow_trigger_on_tags
