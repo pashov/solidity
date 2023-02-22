@@ -12,7 +12,6 @@ contract C {
     }
 }
 
-// ====
-// compileToEwasm: also
+
 // ----
 // s() -> 8, true

@@ -4,7 +4,6 @@ contract test {
     }
 }
 
-// ====
-// compileToEwasm: also
+
 // ----
 // f(uint256): 9 -> 9

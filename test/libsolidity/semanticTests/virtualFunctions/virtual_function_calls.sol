@@ -15,8 +15,7 @@ contract Derived is Base {
     }
 }
 
-// ====
-// compileToEwasm: also
+
 // ----
 // g() -> 2
 // f() -> 2

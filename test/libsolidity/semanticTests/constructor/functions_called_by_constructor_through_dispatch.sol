@@ -25,7 +25,6 @@ contract Test {
     }
 }
 
-// ====
-// compileToEwasm: also
+
 // ----
 // getName() -> "def\x00\x00\x00"

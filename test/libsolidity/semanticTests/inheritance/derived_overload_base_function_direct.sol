@@ -15,7 +15,6 @@ contract C is B {
     }
 }
 
-// ====
-// compileToEwasm: also
+
 // ----
 // g() -> 2

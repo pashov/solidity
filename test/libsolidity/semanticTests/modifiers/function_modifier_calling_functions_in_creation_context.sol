@@ -45,7 +45,6 @@ contract C is A {
     }
 }
 
-// ====
-// compileToEwasm: also
+
 // ----
 // getData() -> 0x4300

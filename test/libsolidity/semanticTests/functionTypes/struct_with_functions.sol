@@ -28,7 +28,6 @@ contract Flow {
     }
 }
 
-// ====
-// compileToEwasm: also
+
 // ----
 // f() -> 1, 2

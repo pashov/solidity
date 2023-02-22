@@ -6,7 +6,6 @@ contract test {
     }
 }
 
-// ====
-// compileToEwasm: also
+
 // ----
 // answer() -> 1

@@ -13,8 +13,7 @@ contract c {
     }
 }
 
-// ====
-// compileToEwasm: also
+
 // ----
 // test() -> 8, 0
 // gas irOptimized: 196279

@@ -6,7 +6,6 @@ contract c {
     }
 }
 
-// ====
-// compileToEwasm: also
+
 // ----
 // test() -> 1

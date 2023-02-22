@@ -6,7 +6,6 @@ contract Foo {
     uint256 constant x = 56;
 }
 
-// ====
-// compileToEwasm: also
+
 // ----
 // getX() -> 56

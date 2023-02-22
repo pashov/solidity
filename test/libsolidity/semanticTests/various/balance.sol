@@ -6,8 +6,7 @@ contract test {
     }
 }
 
-// ====
-// compileToEwasm: also
+
 // ----
 // constructor(), 23 wei ->
 // getBalance() -> 23

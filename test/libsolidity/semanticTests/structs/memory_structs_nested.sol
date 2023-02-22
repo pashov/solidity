@@ -38,7 +38,6 @@ contract Test {
     }
 }
 
-// ====
-// compileToEwasm: also
+
 // ----
 // test() -> 1, 2, 3, 4

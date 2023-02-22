@@ -22,7 +22,6 @@ contract test {
     }
 }
 
-// ====
-// compileToEwasm: also
+
 // ----
 // f() -> 2

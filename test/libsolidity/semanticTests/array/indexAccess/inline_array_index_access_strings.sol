@@ -10,8 +10,7 @@ contract C {
     }
 }
 
-// ====
-// compileToEwasm: also
+
 // ----
 // test() ->
 // tester() -> 0x20, 0x3, "abc"

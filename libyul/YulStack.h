@@ -66,8 +66,8 @@ struct MachineAssemblyObject
 class YulStack: public langutil::CharStreamProvider
 {
 public:
-	enum class Language { Yul, Assembly, StrictAssembly, Ewasm };
-	enum class Machine { EVM, Ewasm };
+	enum class Language { Yul, Assembly, StrictAssembly };
+	enum class Machine { EVM };
 
 	YulStack():
 		YulStack(

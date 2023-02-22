@@ -9,7 +9,6 @@ contract B is A {
     }
 }
 
-// ====
-// compileToEwasm: also
+
 // ----
 // f() -> 7

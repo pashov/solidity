@@ -50,8 +50,7 @@ contract C {
 		return -x;
 	}
 }
-// ====
-// compileToEwasm: also
+
 // compileViaYul: true
 // ----
 // add() -> 1, 1

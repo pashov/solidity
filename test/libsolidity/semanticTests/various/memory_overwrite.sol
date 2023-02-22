@@ -6,7 +6,6 @@ contract C {
     }
 }
 
-// ====
-// compileToEwasm: also
+
 // ----
 // f() -> 0x20, 5, "b23a5"

@@ -22,7 +22,6 @@ contract C {
     }
 }
 
-// ====
-// compileToEwasm: also
+
 // ----
 // f() -> 42, 23, 34

@@ -6,8 +6,7 @@ contract Test {
     }
 }
 
-// ====
-// compileToEwasm: also
+
 // ----
 // f(uint256): 11 -> 21
 // f(uint256): 1 -> FAILURE

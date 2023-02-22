@@ -13,7 +13,6 @@ contract C is A {
     }
 }
 
-// ====
-// compileToEwasm: also
+
 // ----
 // f() -> false

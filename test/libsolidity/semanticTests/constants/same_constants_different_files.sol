@@ -20,7 +20,6 @@ contract C {
     }
 }
 
-// ====
-// compileToEwasm: also
+
 // ----
 // f() -> 0x0d, 0x59, 0x59, 0x59

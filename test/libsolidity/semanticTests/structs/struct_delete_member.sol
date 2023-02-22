@@ -16,7 +16,6 @@ contract test {
     }
 }
 
-// ====
-// compileToEwasm: also
+
 // ----
 // deleteMember() -> 0

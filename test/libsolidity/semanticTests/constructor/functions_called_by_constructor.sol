@@ -15,7 +15,6 @@ contract Test {
     }
 }
 
-// ====
-// compileToEwasm: also
+
 // ----
 // getName() -> "abc"

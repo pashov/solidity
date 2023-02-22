@@ -5,7 +5,6 @@ contract Foo {
     bytes32 constant st = "abc\x00\xff__";
 }
 
-// ====
-// compileToEwasm: also
+
 // ----
 // constructor() ->

@@ -25,7 +25,6 @@ contract D is B, C {
     }
 }
 
-// ====
-// compileToEwasm: also
+
 // ----
 // f() -> 15

@@ -21,7 +21,6 @@ contract E is D {
   }
 }
 
-// ====
-// compileToEwasm: also
+
 // ----
 // i() -> 1337

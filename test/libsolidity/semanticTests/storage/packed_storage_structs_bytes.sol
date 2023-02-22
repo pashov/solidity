@@ -41,8 +41,7 @@ contract C {
     }
 }
 
-// ====
-// compileToEwasm: also
+
 // ----
 // test() -> true
 // gas irOptimized: 132506

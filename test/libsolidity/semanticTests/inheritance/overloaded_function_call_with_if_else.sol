@@ -13,8 +13,7 @@ contract test {
     }
 }
 
-// ====
-// compileToEwasm: also
+
 // ----
 // g(bool): true -> 3
 // g(bool): false -> 10

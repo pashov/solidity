@@ -4,7 +4,6 @@ contract A {
     }
 }
 
-// ====
-// compileToEwasm: also
+
 // ----
 // f() ->

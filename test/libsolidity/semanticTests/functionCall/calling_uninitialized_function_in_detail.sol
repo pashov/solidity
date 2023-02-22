@@ -16,7 +16,6 @@ contract C {
     }
 }
 
-// ====
-// compileToEwasm: also
+
 // ----
 // t() -> FAILURE, hex"4e487b71", 0x51

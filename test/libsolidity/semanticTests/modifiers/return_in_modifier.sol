@@ -14,8 +14,7 @@ contract C {
     }
 }
 
-// ====
-// compileToEwasm: also
+
 // ----
 // x() -> 0
 // f() ->
