@@ -439,7 +439,7 @@ BOOST_AUTO_TEST_CASE(invalid_options_input_modes_combinations)
 
 BOOST_AUTO_TEST_CASE(import_evm_asm_no_optimiser)
 {
-	string expectedMessage = "The following options are mutually exclusive: --import-asm-json, --optimize. Select at most one.";
+	string expectedMessage = "Option --optimize is not supported with --import-asm-json.";
 	auto hasCorrectMessage = [&](CommandLineValidationError const& _exception) { return _exception.what() == expectedMessage; };
 	BOOST_CHECK_EXCEPTION(parseCommandLine({"solc", "contract.sol", "--optimize", "--import-asm-json"}), CommandLineValidationError, hasCorrectMessage);
 }
