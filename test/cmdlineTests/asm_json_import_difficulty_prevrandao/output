@@ -1,6 +1,6 @@
 Opcodes:
-DIFFICULTY DIFFICULTY 
+PREVRANDAO PREVRANDAO 
 EVM assembly:
     /*   */
-  difficulty
-  difficulty
+  prevrandao
+  prevrandao

@@ -158,7 +158,7 @@ public:
 	/// Loads the JSON representation of assembly in the format produced by assemblyJSON().
 	/// @param _json JSON object containing assembly.
 	/// @param _sourceList list of source names.
-	/// @param _isCreation if true, resulting assembly code is marked as creation code, otherwise as runtime code.
+	/// @param _level this function might be called recursively, _level reflects the nesting level.
 	/// @returns Resulting Assembly object loaded from given json.
 	static std::shared_ptr<Assembly> fromJSON(
 		Json::Value const& _json,
